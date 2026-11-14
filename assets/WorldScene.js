@@ -86,6 +86,192 @@ const LEVEL_STARTS = {
   5: { x: 0, y: 0, z: 0 }
 };
 
+const CITY_MAP = {
+  width: 220,
+  height: 260,
+  left: 12,
+  right: 208,
+  top: 16,
+  bottom: 244,
+  minX: -230,
+  maxX: 230,
+  minZ: -255,
+  maxZ: 335
+};
+
+function cityMapPoint(x, z) {
+  return {
+    x: CITY_MAP.left + (x - CITY_MAP.minX) *
+      (CITY_MAP.right - CITY_MAP.left) / (CITY_MAP.maxX - CITY_MAP.minX),
+    y: CITY_MAP.top + (CITY_MAP.maxZ - z) *
+      (CITY_MAP.bottom - CITY_MAP.top) / (CITY_MAP.maxZ - CITY_MAP.minZ)
+  };
+}
+
+function createCityMap(language) {
+  const svgNamespace = 'http://www.w3.org/2000/svg';
+  const svgElement = (name, attributes = {}) => {
+    const element = document.createElementNS(svgNamespace, name);
+    Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+    return element;
+  };
+  const panel = document.createElement('section');
+  panel.className = 'lw-city-map';
+  panel.lang = language;
+  panel.dir = language === 'ar' ? 'rtl' : 'ltr';
+  panel.setAttribute('aria-label', language === 'ar' ? 'خريطة المدينة' : 'Town map');
+
+  const header = document.createElement('div');
+  header.className = 'lw-city-map-header';
+  const heading = document.createElement('strong');
+  heading.textContent = language === 'ar' ? 'خريطة المدينة' : 'Town map';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'lw-city-map-toggle';
+  toggle.textContent = '−';
+  toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
+  toggle.setAttribute('aria-expanded', 'true');
+  header.append(heading, toggle);
+
+  const body = document.createElement('div');
+  body.className = 'lw-city-map-body';
+  const map = svgElement('svg', {
+    viewBox: `0 0 ${CITY_MAP.width} ${CITY_MAP.height}`,
+    role: 'img',
+    'aria-label': language === 'ar'
+      ? 'خريطة طرق المدينة ومواقع المنزل والمدرسة والمطعم والسوبرماركت'
+      : 'City map showing the house, school, restaurant, and supermarket'
+  });
+  map.appendChild(svgElement('rect', {
+    x: 3, y: 3, width: CITY_MAP.width - 6, height: CITY_MAP.height - 6, rx: 12,
+    class: 'lw-city-map-ground'
+  }));
+  const park = cityMapPoint(-201, 155);
+  const parkEnd = cityMapPoint(-139, 105);
+  map.appendChild(svgElement('rect', {
+    x: park.x,
+    y: park.y,
+    width: parkEnd.x - park.x,
+    height: parkEnd.y - park.y,
+    rx: 5,
+    class: 'lw-city-map-park'
+  }));
+
+  const streets = [
+    { start: [30, -255], end: [30, 335], width: 15 },
+    { start: [-220, 95], end: [220, 95], width: 14 },
+    { start: [-185, -50], end: [185, -50], width: 11 },
+    { start: [-140, -130], end: [160, -130], width: 11 },
+    { start: [-215, 170], end: [135, 170], width: 12 },
+    { start: [-155, 230], end: [145, 230], width: 12 },
+    { start: [-150, 284], end: [115, 284], width: 14 },
+    { start: [30, -203], end: [160, -203], width: 13 }
+  ];
+  streets.forEach(({ start, end, width }) => {
+    const first = cityMapPoint(start[0], start[1]);
+    const last = cityMapPoint(end[0], end[1]);
+    const horizontal = start[1] === end[1];
+    const roadWidth = width * (horizontal
+      ? (CITY_MAP.bottom - CITY_MAP.top) / (CITY_MAP.maxZ - CITY_MAP.minZ)
+      : (CITY_MAP.right - CITY_MAP.left) / (CITY_MAP.maxX - CITY_MAP.minX));
+    const path = `M ${first.x} ${first.y} L ${last.x} ${last.y}`;
+    map.appendChild(svgElement('path', {
+      d: path,
+      class: 'lw-city-map-road-edge',
+      'stroke-width': roadWidth + 1.5
+    }));
+    map.appendChild(svgElement('path', {
+      d: path,
+      class: 'lw-city-map-road',
+      'stroke-width': roadWidth
+    }));
+    map.appendChild(svgElement('path', {
+      d: path,
+      class: 'lw-city-map-road-marking',
+      'stroke-width': 0.65
+    }));
+  });
+
+  const markerColors = {
+    house: '#d9b18f',
+    classroom: '#86b9df',
+    restaurant: '#f2a876',
+    supermarket: '#ffd166'
+  };
+  CITY_PORTALS.forEach((portal) => {
+    const position = cityMapPoint(portal.position.x, portal.position.z);
+    const marker = svgElement('g', {
+      class: `lw-city-map-marker${portal.id === 'supermarket' ? ' is-supermarket' : ''}`,
+      transform: `translate(${position.x} ${position.y})`
+    });
+    const title = svgElement('title');
+    title.textContent = portal.title[language];
+    marker.append(title, svgElement('circle', {
+      r: portal.id === 'supermarket' ? 5.3 : 4.2,
+      fill: markerColors[portal.id]
+    }));
+    map.appendChild(marker);
+  });
+
+  const start = cityMapPoint(LEVEL_STARTS[1].x, LEVEL_STARTS[1].z);
+  const playerMarker = svgElement('g', {
+    class: 'lw-city-map-player',
+    transform: `translate(${start.x} ${start.y})`
+  });
+  playerMarker.append(
+    svgElement('circle', { r: 6.2, class: 'lw-city-map-player-halo' }),
+    svgElement('path', { d: 'M 0 -7 L 4 4 L 0 2 L -4 4 Z' })
+  );
+  map.appendChild(playerMarker);
+
+  const compass = document.createElement('span');
+  compass.className = 'lw-city-map-compass';
+  compass.textContent = language === 'ar' ? 'شمال ↑' : 'N ↑';
+
+  const legend = document.createElement('div');
+  legend.className = 'lw-city-map-legend';
+  const legendItems = [
+    { label: language === 'ar' ? 'أنت' : 'You', color: '#ffb36b', player: true },
+    ...CITY_PORTALS.map((portal) => ({
+      label: portal.title[language],
+      color: markerColors[portal.id],
+      id: portal.id
+    }))
+  ];
+  legendItems.forEach(({ label, color, player, id }) => {
+    const item = document.createElement('span');
+    item.className = `lw-city-map-legend-item${id === 'supermarket' ? ' is-supermarket' : ''}`;
+    const dot = document.createElement('i');
+    dot.style.setProperty('--lw-map-marker', color);
+    if (player) dot.classList.add('is-player');
+    const text = document.createElement('bdi');
+    text.textContent = label;
+    item.append(dot, text);
+    legend.appendChild(item);
+  });
+
+  body.append(map, compass, legend);
+  panel.append(header, body);
+  toggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const collapsed = panel.classList.toggle('is-collapsed');
+    body.hidden = collapsed;
+    toggle.textContent = collapsed ? '+' : '−';
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute(
+      'aria-label',
+      collapsed
+        ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
+        : language === 'ar' ? 'طي الخريطة' : 'Collapse map'
+    );
+  });
+  ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach((eventName) => {
+    panel.addEventListener(eventName, (event) => event.stopPropagation());
+  });
+
+  return { panel, playerMarker };
+}
+
 const FirstPersonPlayer = React.forwardRef(function FirstPersonPlayer({
   joystickInput = { x: 0, y: 0 },
   initialPosition = { x: 0, y: 1, z: 0 },
@@ -588,15 +774,19 @@ function WorldExplorer({
   const speechBubbleElement = React.useRef(null);
   const interactionPromptElement = React.useRef(null);
   const interactionPromptNpcId = React.useRef(null);
+  const cityMapElement = React.useRef(null);
+  const cityMapPlayerMarker = React.useRef(null);
   const speechSequence = React.useRef(0);
   const chatOpen = React.useRef(false);
   const screenPosition = React.useMemo(() => new Vector3(), []);
+  const mapDirection = React.useMemo(() => new Vector3(), []);
   const loadingRef = React.useRef(false);
   const readyLevel = React.useRef(null);
   const { camera, gl } = useThree();
   const { animations: movementAnimations } = useGLTF('/Grounds/NPC/Movement.glb', true);
   const { animations: idleAnimations } = useGLTF('/Grounds/NPC/General.glb', true);
   const activeNpcs = WORLD_NPCS[level] || [];
+  const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
 
   const updateNpcPosition = React.useCallback((id, x, z) => {
     let position = npcPositions.current.get(id);
@@ -614,6 +804,21 @@ function WorldExplorer({
   }, [currentLevel]);
 
   React.useEffect(() => {
+    if (level !== 1) return undefined;
+    const cityMap = createCityMap(language);
+    document.body.appendChild(cityMap.panel);
+    cityMapElement.current = cityMap.panel;
+    cityMapPlayerMarker.current = cityMap.playerMarker;
+    return () => {
+      cityMap.panel.remove();
+      if (cityMapElement.current === cityMap.panel) cityMapElement.current = null;
+      if (cityMapPlayerMarker.current === cityMap.playerMarker) {
+        cityMapPlayerMarker.current = null;
+      }
+    };
+  }, [language, level]);
+
+  React.useEffect(() => {
     const onNpcSpeech = (event) => {
       const { npcKey, text } = event.detail || {};
       const target = activeNpcs.find((npc) => npc.npcKey === npcKey);
@@ -629,6 +834,9 @@ function WorldExplorer({
       chatOpen.current = Boolean(event.detail && event.detail.open);
       if (interactionPromptElement.current) {
         interactionPromptElement.current.style.display = chatOpen.current ? 'none' : '';
+      }
+      if (cityMapElement.current) {
+        cityMapElement.current.style.display = chatOpen.current ? 'none' : '';
       }
     };
     window.addEventListener('german-npc-speech', onNpcSpeech);
@@ -668,6 +876,17 @@ function WorldExplorer({
   }, [level]);
 
   useFrame(() => {
+    const player = playerBody.current && playerBody.current.translation();
+    if (level === 1 && player && cityMapPlayerMarker.current) {
+      const position = cityMapPoint(player.x, player.z);
+      camera.getWorldDirection(mapDirection);
+      const heading = Math.atan2(mapDirection.x, -mapDirection.z) * 180 / Math.PI;
+      cityMapPlayerMarker.current.setAttribute(
+        'transform',
+        `translate(${position.x} ${position.y}) rotate(${heading})`
+      );
+    }
+
     const canvas = gl.domElement;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -820,7 +1039,6 @@ function WorldExplorer({
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [enterPortal, nearbyNpc, nearbyPortal, talkToNpc]);
 
-  const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
   const portalText = nearbyPortal
     ? nearbyPortal.isExit
       ? language === 'en'
@@ -937,25 +1155,9 @@ export default function WorldScene({
         .replace(/_/g, ' ')
         .trim()
         .toLowerCase();
-      let unlockedWords;
-      try {
-        unlockedWords = JSON.parse(localStorage.getItem('unlockedWords') || '[]');
-      } catch (error) {
-        console.error('Could not read unlocked vocabulary after a world-object click:', error);
-        unlockedWords = [];
-      }
-
-      const language = localStorage.getItem('currentLanguage') || 'es';
-      const alreadyUnlocked = Array.isArray(unlockedWords) && unlockedWords.some((word) =>
-        word && typeof word.english === 'string' &&
-        word.english.trim().toLowerCase() === vocabularyKey &&
-        (word.language || 'es') === language
-      );
-      if (alreadyUnlocked) {
-        window.dispatchEvent(new CustomEvent('german-world-object-click', {
-          detail: { key: vocabularyKey }
-        }));
-      }
+      window.dispatchEvent(new CustomEvent('german-world-object-click', {
+        detail: { key: vocabularyKey }
+      }));
     }
 
     if (onObjectClick) onObjectClick(objectName);

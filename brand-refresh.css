@@ -2068,3 +2068,247 @@ body.npc-chat-open .de-world-npc-beacon {
     max-height: 24dvh;
   }
 }
+
+.lw-city-map {
+  position: fixed;
+  z-index: 999980;
+  top: 132px;
+  right: 14px;
+  width: min(216px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 9px;
+  border: 1px solid rgba(255, 253, 248, 0.3);
+  border-radius: 17px;
+  background: rgba(18, 56, 47, 0.92);
+  box-shadow: 0 14px 36px rgba(10, 28, 23, 0.3);
+  color: #fffdf8;
+  font-family: Inter, "Cairo", "Segoe UI", Arial, sans-serif;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lw-city-map-header {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 3px 1px;
+}
+
+.lw-city-map-header strong {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.lw-city-map-toggle {
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 253, 248, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.1);
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lw-city-map-toggle:hover {
+  background: rgba(255, 253, 248, 0.2);
+}
+
+.lw-city-map-toggle:focus-visible {
+  outline: 3px solid #f1bd91;
+  outline-offset: 2px;
+}
+
+.lw-city-map-body {
+  position: relative;
+}
+
+.lw-city-map-body[hidden] {
+  display: none;
+}
+
+.lw-city-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lw-city-map-ground {
+  fill: #dce5d2;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1;
+}
+
+.lw-city-map-park {
+  fill: #9ab88e;
+  stroke: rgba(49, 91, 64, 0.35);
+  stroke-width: 0.8;
+}
+
+.lw-city-map-road-edge,
+.lw-city-map-road,
+.lw-city-map-road-marking {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lw-city-map-road-edge {
+  stroke: #b4b99e;
+}
+
+.lw-city-map-road {
+  stroke: #667873;
+}
+
+.lw-city-map-road-marking {
+  stroke: rgba(255, 239, 195, 0.58);
+  stroke-dasharray: 2 3;
+}
+
+.lw-city-map-marker circle {
+  stroke: #fffdf8;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.lw-city-map-marker.is-supermarket circle {
+  stroke: #fff8df;
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 2px rgba(202, 132, 43, 0.9));
+}
+
+.lw-city-map-player-halo {
+  fill: #e58b50;
+  stroke: #fffdf8;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.lw-city-map-player path {
+  fill: #fffdf8;
+  stroke: #854b2e;
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.lw-city-map-compass {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 8px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(18, 56, 47, 0.82);
+  color: #fffdf8;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.lw-city-map-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 7px;
+  padding: 7px 3px 2px;
+}
+
+.lw-city-map-legend-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255, 253, 248, 0.86);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.lw-city-map-legend-item bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lw-city-map-legend-item i {
+  width: 8px;
+  min-width: 8px;
+  height: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  background: var(--lw-map-marker);
+}
+
+.lw-city-map-legend-item i.is-player {
+  box-shadow: 0 0 0 2px rgba(255, 179, 107, 0.24);
+}
+
+.lw-city-map-legend-item.is-supermarket {
+  color: #ffda7c;
+  font-weight: 850;
+}
+
+.lw-city-map.is-collapsed {
+  width: 158px;
+}
+
+@media (max-width: 760px) {
+  .lw-city-map {
+    top: 112px;
+    right: 8px;
+    width: 174px;
+    padding: 7px;
+    border-radius: 14px;
+  }
+
+  .lw-city-map-header {
+    min-height: 36px;
+  }
+
+  .lw-city-map-header strong {
+    font-size: 12px;
+  }
+
+  .lw-city-map-toggle {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+  }
+
+  .lw-city-map-legend {
+    gap: 4px 5px;
+    padding-top: 5px;
+  }
+
+  .lw-city-map-legend-item {
+    font-size: 8px;
+  }
+
+  .lw-city-map.is-collapsed {
+    width: 148px;
+  }
+}
+
+@media (max-height: 620px) {
+  .lw-city-map {
+    top: 105px;
+  }
+
+  .lw-city-map svg {
+    max-height: 42vh;
+  }
+}

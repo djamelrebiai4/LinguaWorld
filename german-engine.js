@@ -7,6 +7,9 @@
 
 (function () {
   'use strict';
+  let recentWorldObjectClick = null;
+  let worldObjectToastTimer = null;
+
   // Hook localStorage.setItem to immediately detect newly clicked 3D objects
   const origSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function(key, val) {
@@ -17,7 +20,13 @@
         if (Array.isArray(arr) && arr.length > 0) {
           const last = arr[arr.length - 1];
           const rawKey = (last.english || '').toLowerCase().trim();
-          if (window.GermanEngine && rawKey && window.GermanEngine.handleItemInteraction) {
+          const wasWorldClick = recentWorldObjectClick &&
+            recentWorldObjectClick.key === rawKey &&
+            recentWorldObjectClick.expiresAt > Date.now();
+          if (wasWorldClick) {
+            recentWorldObjectClick = null;
+          } else if (window.GermanEngine && rawKey &&
+            window.GermanEngine.handleItemInteraction) {
             window.GermanEngine.handleItemInteraction(rawKey);
           }
         }
@@ -537,6 +546,45 @@
     return getSupportLanguage() === 'en' ? quest.title_en : quest.title_ar;
   }
 
+  function showWorldObjectWord(key) {
+    const item = GERMAN_VOCAB[key];
+    if (!item) return;
+
+    recentWorldObjectClick = { key, expiresAt: Date.now() + 1800 };
+    document.querySelector('.de-object-word-toast')?.remove();
+    if (worldObjectToastTimer) window.clearTimeout(worldObjectToastTimer);
+
+    const language = getSupportLanguage();
+    const toast = document.createElement('div');
+    toast.className = 'de-object-word-toast';
+    toast.dir = language === 'ar' ? 'rtl' : 'ltr';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+
+    const germanWord = document.createElement('bdi');
+    germanWord.className = 'de-object-word-german';
+    germanWord.lang = 'de';
+    germanWord.dir = 'ltr';
+    germanWord.textContent = item.de;
+
+    const translation = document.createElement('bdi');
+    translation.className = 'de-object-word-translation';
+    translation.lang = language;
+    translation.dir = language === 'ar' ? 'rtl' : 'ltr';
+    translation.textContent = getItemTranslation(item);
+
+    toast.append(germanWord, translation);
+    document.body.appendChild(toast);
+    worldObjectToastTimer = window.setTimeout(() => {
+      toast.classList.add('is-leaving');
+      worldObjectToastTimer = window.setTimeout(() => {
+        toast.remove();
+        worldObjectToastTimer = null;
+      }, 180);
+    }, 2100);
+    speakGerman(item.de);
+  }
+
   // 11. Handle 3D Item Interaction
   function handleItemInteraction(key) {
     const item = GERMAN_VOCAB[key];
@@ -991,7 +1039,7 @@
 
     const onWorldObjectClick = (event) => {
       const key = event.detail && event.detail.key;
-      if (typeof key === 'string') handleItemInteraction(key);
+      if (typeof key === 'string') showWorldObjectWord(key);
     };
     window.addEventListener('german-world-object-click', onWorldObjectClick);
   }
