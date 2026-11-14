@@ -905,10 +905,20 @@
               <textarea id="de-ai-chat-input" maxlength="500" rows="1" required dir="auto" lang="${language}"
                 placeholder="${copy.placeholder}" aria-label="${copy.placeholder}"></textarea>
               <button class="de-ai-mic-button" type="button" disabled
-                aria-label="${copy.micComingSoon}" title="${copy.micComingSoon}">🎙</button>
+                aria-label="${copy.micComingSoon}" title="${copy.micComingSoon}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <rect x="9" y="3" width="6" height="12" rx="3"></rect>
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"></path>
+                </svg>
+              </button>
               <button class="de-ai-send-button" id="de-ai-send-button" type="submit"
                 aria-label="${copy.send}" title="${copy.send}">
-                <span aria-hidden="true">➤</span>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="m3 11 18-8-7 18-3-7-8-3Z"></path>
+                    <path d="m11 14 5-5"></path>
+                  </svg>
+                </span>
                 <span>${copy.send}</span>
               </button>
             </div>
