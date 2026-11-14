@@ -1,6 +1,6 @@
 'use strict';
 
-const MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+const MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
 const MAX_MESSAGES = 20;
 const MAX_USER_MESSAGE_LENGTH = 500;
 const MAX_ASSISTANT_MESSAGE_LENGTH = 700;
@@ -198,6 +198,7 @@ module.exports = async function handler(req, res) {
         ],
         response_format: { type: 'json_object' },
         temperature: 0.7,
+        reasoning_effort: 'low',
         max_completion_tokens: 250
       }),
       signal: controller.signal
@@ -207,7 +208,26 @@ module.exports = async function handler(req, res) {
       if (upstream.status === 429) {
         return respond(res, 429, { error: 'The AI service is busy. Please try again shortly.' });
       }
-      console.error('Groq chat API returned HTTP', upstream.status);
+      const errorText = await upstream.text();
+      let errorDetails = errorText;
+      try {
+        const errorPayload = JSON.parse(errorText);
+        const upstreamError = errorPayload?.error;
+        errorDetails = typeof upstreamError === 'string'
+          ? upstreamError
+          : [upstreamError?.code, upstreamError?.type, upstreamError?.message]
+            .filter((value) => typeof value === 'string' && value)
+            .join(': ') || 'No error details returned';
+      } catch {
+        if (!errorDetails) errorDetails = 'No error details returned';
+      }
+      errorDetails = errorDetails
+        .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+        .slice(0, 500);
+      console.error(`Groq chat API returned HTTP ${upstream.status} for ${MODEL}: ${errorDetails}`);
+      if (upstream.status === 401 || upstream.status === 403) {
+        return respond(res, 503, { error: 'AI chat credentials or model access are not configured.' });
+      }
       return respond(res, 502, { error: 'The AI service could not complete the conversation.' });
     }
 
