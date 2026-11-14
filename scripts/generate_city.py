@@ -570,25 +570,13 @@ class City:
                                (x + dx * scale, crown_y, z + dz * scale),
                                radius * scale, (1, 0.9, 1), 5, 8)
 
-    def car(self, x, z, color, rotation=0):
+    def car(self, x, z, rotation=0):
         length, width = 4.4, 1.86
-        self.interaction_box("car", (x, 0.9, z), (5.1, 1.9, 2.35))
-        cosine, sine = math.cos(rotation), math.sin(rotation)
-
-        def place(local_x, local_z, y):
-            return (x + local_x * cosine - local_z * sine, y,
-                    z + local_x * sine + local_z * cosine)
-
-        self.box(color, place(0, 0, 0.72), (length, 0.9, width), collision=True)
-        self.box(color, place(0.05, 0, 1.3), (2.35, 0.62, 1.48))
-        self.box("glass", place(0.05, 0, 1.35), (2.16, 0.44, 1.34))
-        for side in (-1, 1):
-            for along in (-1.35, 1.35):
-                px, py, pz = place(along, side * 0.92, 0.52)
-                self.visual.cylinder("rubber", (px, py, pz), 0.4, 0.4, 0.18, 10)
-        for side in (-1, 1):
-            px, py, pz = place(2.15, side * 0.55, 0.82)
-            self.box("lamp_glow", (px, py, pz), (0.08, 0.22, 0.35))
+        rotated = abs(math.sin(rotation)) > 0.5
+        size = (width, 1.65, length) if rotated else (length, 1.65, width)
+        interaction_size = (5.1, 2.1, 2.35) if not rotated else (2.35, 2.1, 5.1)
+        self.interaction_box("car", (x, 0.95, z), interaction_size)
+        self.collision.box("collision", (x, 0.82, z), size)
 
     def traffic_light(self, x, z):
         self.interaction_box("traffic_light", (x, 2.5, z), (0.85, 5.1, 0.85))
@@ -718,10 +706,10 @@ class City:
         self.traffic_light(39, 101)
         self.traffic_light(39, 176)
         self.traffic_light(39, -197)
-        self.car(-75, 91, "car_blue", 0)
-        self.car(152, 99, "car_cream", 0)
-        self.car(33, 18, "car_red", math.pi / 2)
-        self.car(33, -94, "car_blue", math.pi / 2)
+        self.car(-75, 91)
+        self.car(152, 99)
+        self.car(33, 18, math.pi / 2)
+        self.car(33, -94, math.pi / 2)
 
         self.box("metal", (0, 9, -313), (460, 18, 2), collision=True, visible=False)
         self.box("metal", (0, 9, 373), (460, 18, 2), collision=True, visible=False)

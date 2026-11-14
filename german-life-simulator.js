@@ -859,15 +859,22 @@
               </div>
             </div>
           </div>
-          <button class="de-modal-close" id="de-npc-chat-close"
-            aria-label="${copy.close}" title="${copy.close}">&times;</button>
-        </div>
-        <div class="de-dialogue-body" id="de-npc-chat-body">
+          <div class="de-ai-header-actions">
+            <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
+              aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
+              title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
+              <span aria-hidden="true">文A</span>
+              <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
+            </button>
+            <button class="de-modal-close" id="de-npc-chat-close"
+              aria-label="${copy.close}" title="${copy.close}">&times;</button>
+          </div>
           <div class="de-ai-friendship" id="de-ai-friendship"
             title="${copy.friendship}: ${npc.friendship}/100">
             <div class="de-ai-friendship-label">
               <span>${copy.friendship}</span>
               <bdi id="de-ai-friendship-status" lang="de" dir="ltr">${friendshipLabel}</bdi>
+              <span class="de-ai-friendship-points" id="de-ai-friendship-points">${npc.friendship}/100</span>
             </div>
             <div class="de-ai-friendship-track" role="progressbar"
               aria-label="${copy.friendship}" aria-valuemin="0" aria-valuemax="100"
@@ -875,69 +882,63 @@
               <span class="de-ai-friendship-fill" id="de-ai-friendship-fill"
                 style="width:${Math.max(0, Math.min(100, npc.friendship))}%"></span>
             </div>
-            <span class="de-ai-friendship-points" id="de-ai-friendship-points">${npc.friendship}/100</span>
           </div>
-          <div class="de-ai-chat-tools">
-            <span class="de-ai-practice-label">${copy.practiceLabel}</span>
-            <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
-              aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
-              title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
-                <circle cx="12" cy="12" r="2.5"></circle>
-              </svg>
-              <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
-            </button>
-          </div>
+        </div>
+        <div class="de-dialogue-body" id="de-npc-chat-body">
           <div class="de-ai-chat-history" id="de-ai-chat-history" role="log" aria-live="polite"></div>
-          <div class="de-ai-chat-status" id="de-ai-chat-status" role="status" aria-live="polite"></div>
-          <div class="de-ai-suggestions" id="de-ai-suggestions">
-            <div class="de-ai-suggestions-title">${copy.suggestions}</div>
-            ${suggestedResponses.slice(0, 3).map((response, index) => `
-              <button class="de-ai-suggestion" type="button" data-response-index="${index}">
-                <span class="de-ai-suggestion-de" lang="de" dir="ltr"><bdi>${response.de}</bdi></span>
-                <span class="de-ai-suggestion-translation" lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
-                  ${language === 'ar' ? `<bdi>${response.ar}</bdi>` : ''}
-                </span>
-                <span class="de-ai-suggestion-shortcut" aria-hidden="true">${index + 1}</span>
-              </button>
-            `).join('')}
-          </div>
-          <form class="de-ai-chat-form" id="de-ai-chat-form" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
-            <div class="de-ai-composer">
-              <textarea id="de-ai-chat-input" maxlength="500" rows="1" required dir="auto" lang="${language}"
-                placeholder="${copy.placeholder}" aria-label="${copy.placeholder}"></textarea>
-              <button class="de-ai-mic-button" type="button" disabled
-                aria-label="${copy.micComingSoon}" title="${copy.micComingSoon}">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <rect x="9" y="3" width="6" height="12" rx="3"></rect>
-                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"></path>
-                </svg>
-              </button>
-              <button class="de-ai-send-button" id="de-ai-send-button" type="submit"
-                aria-label="${copy.send}" title="${copy.send}">
-                <span aria-hidden="true">
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="m3 11 18-8-7 18-3-7-8-3Z"></path>
-                    <path d="m11 14 5-5"></path>
+          <div class="de-ai-chat-footer">
+            <div class="de-ai-chat-status" id="de-ai-chat-status" role="status" aria-live="polite"></div>
+            <div class="de-ai-suggestions" id="de-ai-suggestions">
+              <div class="de-ai-suggestions-title">${copy.suggestions}</div>
+              ${suggestedResponses.slice(0, 3).map((response, index) => `
+                <button class="de-ai-suggestion" type="button" data-response-index="${index}">
+                  <span class="de-ai-suggestion-de" lang="de" dir="ltr"><bdi>${response.de}</bdi></span>
+                  <span class="de-ai-suggestion-translation" lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
+                    ${language === 'ar' ? `<bdi>${response.ar}</bdi>` : ''}
+                  </span>
+                  <span class="de-ai-suggestion-shortcut" aria-hidden="true">${index + 1}</span>
+                </button>
+              `).join('')}
+            </div>
+            <form class="de-ai-chat-form" id="de-ai-chat-form" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
+              <div class="de-ai-composer">
+                <textarea id="de-ai-chat-input" maxlength="500" rows="1" required dir="auto" lang="${language}"
+                  placeholder="${copy.placeholder}" aria-label="${copy.placeholder}"></textarea>
+                <button class="de-ai-mic-button" type="button" disabled
+                  aria-label="${copy.micComingSoon}" title="${copy.micComingSoon}">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <rect x="9" y="3" width="6" height="12" rx="3"></rect>
+                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"></path>
                   </svg>
+                </button>
+                <button class="de-ai-send-button" id="de-ai-send-button" type="submit"
+                  aria-label="${copy.send}" title="${copy.send}">
+                  <span aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="m3 11 18-8-7 18-3-7-8-3Z"></path>
+                      <path d="m11 14 5-5"></path>
+                    </svg>
+                  </span>
+                  <span>${copy.send}</span>
+                </button>
+              </div>
+              <div class="de-ai-composer-meta">
+                <span id="de-ai-character-count" hidden>0/500</span>
+                <span class="de-ai-keyboard-hint">
+                  <bdi dir="ltr"><kbd>${copy.enterKey}</kbd></bdi>
+                  <span dir="auto">${copy.sendHint}</span>
+                  <span aria-hidden="true">·</span>
+                  <bdi dir="ltr"><kbd>${copy.shiftEnterKey}</kbd></bdi>
+                  <span dir="auto">${copy.newlineHint}</span>
                 </span>
-                <span>${copy.send}</span>
-              </button>
-            </div>
-            <div class="de-ai-composer-meta">
-              <span id="de-ai-character-count">0/500</span>
-              <span class="de-ai-keyboard-hint">
-                <bdi dir="ltr"><kbd>${copy.enterKey}</kbd></bdi>
-                <span dir="auto">${copy.sendHint}</span>
-                <span aria-hidden="true">·</span>
-                <bdi dir="ltr"><kbd>${copy.shiftEnterKey}</kbd></bdi>
-                <span dir="auto">${copy.newlineHint}</span>
-              </span>
-            </div>
-          </form>
-          <div class="de-ai-privacy-note" dir="auto">
-            <span>${copy.privacyBefore}</span> <bdi dir="ltr">Groq</bdi> <span>${copy.privacyAfter}</span>
+                <details class="de-ai-privacy-info">
+                  <summary aria-label="${copy.privacyBefore} Groq" title="${copy.privacyBefore} Groq">i</summary>
+                  <div class="de-ai-privacy-note" dir="auto">
+                    <span>${copy.privacyBefore}</span> <bdi dir="ltr">Groq</bdi> <span>${copy.privacyAfter}</span>
+                  </div>
+                </details>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -1015,7 +1016,7 @@
         hour: '2-digit',
         minute: '2-digit'
       });
-      meta.append(speaker, time);
+      meta.append(avatar, speaker, time);
       message.appendChild(meta);
 
       const german = document.createElement('div');
@@ -1050,14 +1051,13 @@
         listenButton.title = copy.listen;
         listenButton.textContent = '🔊';
         listenButton.addEventListener('click', () => speakMessage(germanText, listenButton));
-        message.appendChild(listenButton);
+        meta.appendChild(listenButton);
         window.dispatchEvent(new CustomEvent('german-npc-speech', {
           detail: { npcKey, text: germanText }
         }));
       }
 
-      if (role === 'assistant') row.append(avatar, message);
-      else row.append(message, avatar);
+      row.appendChild(message);
       historyElement.appendChild(row);
       scrollToBottomIfPinned(wasPinned);
       return { row, germanContent };
@@ -1085,13 +1085,13 @@
       const typingText = document.createElement('span');
       typingText.dir = 'auto';
       typingText.textContent = copy.typing;
-      label.append(speakerName, document.createTextNode(' '), typingText);
+      label.append(avatar, speakerName, document.createTextNode(' '), typingText);
       const dots = document.createElement('span');
       dots.className = 'de-ai-typing-dots';
       dots.setAttribute('aria-hidden', 'true');
       dots.append(document.createElement('i'), document.createElement('i'), document.createElement('i'));
       bubble.append(label, dots);
-      row.append(avatar, bubble);
+      row.appendChild(bubble);
       historyElement.appendChild(row);
       scrollToBottomIfPinned(wasPinned);
       return row;
@@ -1189,8 +1189,9 @@
 
     function updateComposer() {
       characterCount.textContent = `${input.value.length}/500`;
+      characterCount.hidden = input.value.length <= 400;
       input.style.height = 'auto';
-      input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+      input.style.height = `${Math.min(input.scrollHeight, 84)}px`;
     }
 
     function closeConversation() {

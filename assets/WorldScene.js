@@ -486,9 +486,9 @@ function useWorldModel(modelPath, collisionPath, collisionNode, playerStart, onP
   );
 }
 
-function LevelWorld({ level, onPositionsReady }) {
+function LevelWorld({ level, onPositionsReady, isPaused }) {
   if (level === 1) {
-    return h(CityWorld, { onPositionsReady });
+    return h(CityWorld, { onPositionsReady, isPaused });
   }
   if (level === 2) {
     return h(HouseWorld, { onPositionsReady });
@@ -505,7 +505,7 @@ function LevelWorld({ level, onPositionsReady }) {
   return null;
 }
 
-function CityWorld({ onPositionsReady }) {
+function CityWorld({ onPositionsReady, isPaused }) {
   return h(React.Fragment, null,
     h('fog', { attach: 'fog', args: ['#c5d0cf', 260, 760] }),
     h('ambientLight', { intensity: 0.25, color: 0xffffff }),
@@ -535,7 +535,8 @@ function CityWorld({ onPositionsReady }) {
       'city_Collision',
       LEVEL_STARTS[1],
       onPositionsReady
-    )
+    ),
+    h(CityVehicles, { isPaused })
   );
 }
 
@@ -576,6 +577,283 @@ function SupermarketWorld({ onPositionsReady }) {
     'supermarket_Collision',
     LEVEL_STARTS[5],
     onPositionsReady
+  );
+}
+
+function DetailedCar({ vehicle, vehicleRef }) {
+  const wheelRefs = React.useRef([]);
+  const style = vehicle.style === 'van'
+    ? { length: 5, cabinLength: 2.85, cabinX: -0.05, cabinHeight: 0.78, windowCount: 3 }
+    : vehicle.style === 'hatchback'
+      ? { length: 4.25, cabinLength: 2.2, cabinX: -0.22, cabinHeight: 0.6, windowCount: 2 }
+      : { length: 4.55, cabinLength: 2.15, cabinX: -0.2, cabinHeight: 0.6, windowCount: 2 };
+  const paint = () => h('meshPhysicalMaterial', {
+    color: vehicle.color,
+    metalness: 0.28,
+    roughness: 0.34,
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.24
+  });
+  const glass = () => h('meshPhysicalMaterial', {
+    color: '#31505b',
+    metalness: 0.18,
+    roughness: 0.22,
+    clearcoat: 0.8
+  });
+  const box = (key, position, size, material, rotation = [0, 0, 0]) =>
+    h('mesh', { key, position, rotation, castShadow: true, receiveShadow: true },
+      h('boxGeometry', { args: size }), material);
+  const wheelNodes = [-1, 1].flatMap((side, sideIndex) =>
+    [-1, 1].map((along, alongIndex) => {
+      const index = sideIndex * 2 + alongIndex;
+      return h('group', {
+        key: `wheel-${side}-${along}`,
+        ref: (node) => { wheelRefs.current[index] = node; },
+        position: [along * (style.length * 0.31), 0.48, side * 0.96]
+      },
+      h('mesh', { scale: [0.2, 0.43, 0.43], castShadow: true },
+        h('sphereGeometry', { args: [1, 16, 12] }),
+        h('meshStandardMaterial', { color: '#202728', roughness: 0.92 })),
+      h('mesh', {
+        position: [0, 0, side * 0.19],
+        rotation: [Math.PI / 2, 0, 0],
+        castShadow: true
+      },
+      h('cylinderGeometry', { args: [0.22, 0.22, 0.07, 16] }),
+      h('meshStandardMaterial', { color: '#b8c2bd', metalness: 0.76, roughness: 0.28 })));
+    })
+  );
+  const windows = [-1, 1].flatMap((side) =>
+    Array.from({ length: style.windowCount }, (_, index) => {
+      const windowWidth = style.cabinLength / style.windowCount - 0.1;
+      const x = style.cabinX - style.cabinLength / 2 +
+        (index + 0.5) * style.cabinLength / style.windowCount;
+      return h('mesh', {
+        key: `window-${side}-${index}`,
+        position: [x, 1.4 + (style.cabinHeight - 0.6) / 2, side * 0.72],
+        castShadow: true
+      },
+      h('boxGeometry', { args: [windowWidth, 0.38, 0.035] }),
+      glass());
+    })
+  );
+  const windshieldY = 1.4 + (style.cabinHeight - 0.6) / 2;
+  const windshields = [
+    h('mesh', {
+      key: 'front-windshield',
+      position: [style.cabinX + style.cabinLength / 2 + 0.035, windshieldY, 0],
+      rotation: [0, 0, -0.22],
+      castShadow: true
+    },
+    h('boxGeometry', { args: [0.035, 0.4, 1.26] }),
+    glass()),
+    h('mesh', {
+      key: 'rear-windshield',
+      position: [style.cabinX - style.cabinLength / 2 - 0.035, windshieldY, 0],
+      rotation: [0, 0, 0.22],
+      castShadow: true
+    },
+    h('boxGeometry', { args: [0.035, 0.4, 1.26] }),
+    glass())
+  ];
+  const doors = [-1, 1].flatMap((side) => [-0.55, 0.45].map((x) =>
+    box(`door-seam-${side}-${x}`, [x, 0.93, side * 0.93], [0.025, 0.4, 0.025],
+      h('meshStandardMaterial', { color: '#263a3c', roughness: 0.6 }))));
+  const bodyParts = [
+    h('mesh', {
+      key: 'main-body',
+      position: [0, 0.83, 0],
+      scale: [style.length * 0.51, 0.42, 0.92],
+      castShadow: true,
+      receiveShadow: true
+    }, h('sphereGeometry', { args: [1, 20, 14] }), paint()),
+    h('mesh', {
+      key: 'hood',
+      position: [style.length * 0.29, 1.02, 0],
+      scale: [0.96, 0.23, 0.88],
+      castShadow: true
+    }, h('sphereGeometry', { args: [1, 16, 12] }), paint()),
+    h('mesh', {
+      key: 'trunk',
+      position: [-style.length * 0.35, 0.99, 0],
+      scale: [0.72, 0.22, 0.87],
+      castShadow: true
+    }, h('sphereGeometry', { args: [1, 16, 12] }), paint()),
+    h('mesh', {
+      key: 'cabin',
+      position: [style.cabinX, 1.35 + (style.cabinHeight - 0.6) / 2, 0],
+      castShadow: true,
+      receiveShadow: true
+    },
+    h('boxGeometry', { args: [style.cabinLength, style.cabinHeight, 1.42] }),
+    paint()),
+    h('mesh', {
+      key: 'roof',
+      position: [style.cabinX, 1.67 + (style.cabinHeight - 0.6) / 2, 0],
+      scale: [style.cabinLength * 0.46, 0.11, 0.73],
+      castShadow: true
+    }, h('sphereGeometry', { args: [1, 16, 10] }), paint()),
+    ...windows,
+    ...windshields,
+    ...doors,
+    ...wheelNodes,
+    ...[-1, 1].flatMap((side) => [
+      box(`mirror-${side}`, [0.65, 1.35, side * 0.99], [0.24, 0.12, 0.16],
+        h('meshStandardMaterial', { color: vehicle.color, metalness: 0.2, roughness: 0.38 })),
+      box(`handle-${side}-front`, [0.2, 1.08, side * 0.95], [0.2, 0.045, 0.025],
+        h('meshStandardMaterial', { color: '#d8d6ca', metalness: 0.7, roughness: 0.3 })),
+      box(`handle-${side}-rear`, [-0.8, 1.08, side * 0.95], [0.2, 0.045, 0.025],
+        h('meshStandardMaterial', { color: '#d8d6ca', metalness: 0.7, roughness: 0.3 }))
+    ]),
+    box('front-bumper', [style.length * 0.51, 0.58, 0], [0.16, 0.16, 1.62],
+      h('meshStandardMaterial', { color: '#596263', metalness: 0.45, roughness: 0.4 })),
+    box('rear-bumper', [-style.length * 0.51, 0.58, 0], [0.16, 0.16, 1.62],
+      h('meshStandardMaterial', { color: '#596263', metalness: 0.45, roughness: 0.4 })),
+    box('front-grille', [style.length * 0.51 + 0.015, 0.78, 0], [0.04, 0.25, 0.58],
+      h('meshStandardMaterial', { color: '#202b2d', metalness: 0.35, roughness: 0.55 })),
+    ...[0.72, 0.8, 0.88].map((y) =>
+      box(`grille-bar-${y}`, [style.length * 0.51 + 0.04, y, 0], [0.025, 0.025, 0.44],
+        h('meshStandardMaterial', { color: '#9da9a5', metalness: 0.72, roughness: 0.3 }))),
+    ...[-1, 1].flatMap((side) => [
+      box(`headlight-${side}`, [style.length * 0.49, 0.94, side * 0.58],
+        [0.08, 0.2, 0.34],
+        h('meshStandardMaterial', {
+          color: '#fff2c7',
+          emissive: '#e5bc69',
+          emissiveIntensity: 0.3,
+          roughness: 0.28
+        })),
+      box(`tail-light-${side}`, [-style.length * 0.49, 0.91, side * 0.58],
+        [0.08, 0.22, 0.28],
+        h('meshStandardMaterial', {
+          color: '#bf493f',
+          emissive: '#7c1915',
+          emissiveIntensity: 0.2,
+          roughness: 0.3
+        }))
+    ])
+  ];
+
+  if (vehicle.style === 'taxi') {
+    bodyParts.push(box('taxi-sign', [-0.18, 1.82, 0], [0.62, 0.18, 0.34],
+      h('meshStandardMaterial', {
+        color: '#f4c343',
+        emissive: '#8b6915',
+        emissiveIntensity: 0.15,
+        roughness: 0.42
+      })));
+  }
+
+  useFrame((_, delta) => {
+    if (!vehicle.wheelSpeed) return;
+    wheelRefs.current.forEach((wheel) => {
+      if (wheel) wheel.rotation.z -= vehicle.wheelSpeed * delta / 0.43;
+    });
+  });
+
+  return h('group', {
+    ref: vehicleRef,
+    name: 'I_car',
+    position: vehicle.position,
+    rotation: [0, vehicle.rotation || 0, 0]
+  }, ...bodyParts);
+}
+
+const PARKED_CARS = [
+  { id: 'parked-sedan', position: [-75, 0, 91], rotation: 0, style: 'sedan', color: '#54879a' },
+  { id: 'parked-hatchback', position: [152, 0, 99], rotation: Math.PI, style: 'hatchback', color: '#ddd8c9' },
+  { id: 'parked-van', position: [33, 0, 18], rotation: -Math.PI / 2, style: 'van', color: '#bd6252' },
+  { id: 'parked-taxi', position: [33, 0, -94], rotation: -Math.PI / 2, style: 'taxi', color: '#e1ad45' }
+];
+
+const MOVING_CARS = [
+  {
+    id: 'traffic-sedan',
+    axis: 'x',
+    lane: -54,
+    min: -180,
+    max: 180,
+    direction: 1,
+    speed: 6.5,
+    start: -145,
+    style: 'sedan',
+    color: '#477d68'
+  },
+  {
+    id: 'traffic-hatchback',
+    axis: 'x',
+    lane: -46,
+    min: -180,
+    max: 180,
+    direction: -1,
+    speed: 5.5,
+    start: 130,
+    style: 'hatchback',
+    color: '#647eae'
+  },
+  {
+    id: 'traffic-van',
+    axis: 'x',
+    lane: 227,
+    min: -145,
+    max: 135,
+    direction: 1,
+    speed: 5.2,
+    start: -92,
+    style: 'van',
+    color: '#e4dfd1'
+  },
+  {
+    id: 'traffic-taxi',
+    axis: 'x',
+    lane: 233,
+    min: -145,
+    max: 135,
+    direction: -1,
+    speed: 6,
+    start: 95,
+    style: 'taxi',
+    color: '#c95f4c'
+  }
+];
+
+function MovingCar({ vehicle, isPaused }) {
+  const groupRef = React.useRef(null);
+  const distance = React.useRef(vehicle.direction > 0
+    ? vehicle.start - vehicle.min
+    : vehicle.max - vehicle.start);
+  const span = vehicle.max - vehicle.min;
+  const rotation = vehicle.direction > 0 ? 0 : Math.PI;
+  const position = vehicle.axis === 'x'
+    ? [vehicle.start, 0, vehicle.lane]
+    : [vehicle.lane, 0, vehicle.start];
+
+  useFrame((_, delta) => {
+    if (isPaused || !groupRef.current) return;
+    distance.current = (distance.current + vehicle.speed * delta) % span;
+    const along = vehicle.direction > 0
+      ? vehicle.min + distance.current
+      : vehicle.max - distance.current;
+    if (vehicle.axis === 'x') groupRef.current.position.x = along;
+    else groupRef.current.position.z = along;
+  });
+
+  return h(DetailedCar, {
+    vehicle: {
+      ...vehicle,
+      position,
+      rotation,
+      wheelSpeed: vehicle.speed * vehicle.direction
+    },
+    vehicleRef: groupRef
+  });
+}
+
+function CityVehicles({ isPaused }) {
+  return h(React.Fragment, null,
+    PARKED_CARS.map((vehicle) => h(DetailedCar, { key: vehicle.id, vehicle })),
+    MOVING_CARS.map((vehicle) =>
+      h(MovingCar, { key: vehicle.id, vehicle, isPaused }))
   );
 }
 
@@ -1127,7 +1405,7 @@ function WorldExplorer({
         isMobile
       })
       : null,
-    h(LevelWorld, { level, onPositionsReady }),
+    h(LevelWorld, { level, onPositionsReady, isPaused: isPaused || isLoading }),
     activeNpcs.map((npc) => h(NPCCharacter, {
       key: npc.id,
       npc,
