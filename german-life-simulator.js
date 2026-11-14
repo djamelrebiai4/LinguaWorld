@@ -1057,7 +1057,7 @@
       else row.append(message, avatar);
       historyElement.appendChild(row);
       scrollToBottomIfPinned(wasPinned);
-      return { row, germanContent, listenButton };
+      return { row, germanContent };
     }
 
     function appendTypingIndicator() {
@@ -1289,7 +1289,6 @@
         typewriteMessage(assistantMessage, result.reply.de);
         statusElement.textContent = '';
         statusElement.classList.remove('is-error');
-        speakMessage(result.reply.de, assistantMessage.listenButton);
         if (input.value.trim() === userText) {
           input.value = '';
           updateComposer();
