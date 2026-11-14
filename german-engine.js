@@ -250,12 +250,17 @@
       <div class="de-hud-level">
         <span>🏆</span> <span id="de-hud-lvl-val">${State.getLevelName()}</span>
       </div>
+      <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
       <button class="de-hud-btn" id="de-launch-game-btn" title="العب لعبة أدوات التعريف">
         <span>🎮</span> <span>Der Die Das</span>
       </button>
     `;
     document.body.appendChild(hud);
 
+    document.getElementById('de-launch-dialogue-btn').addEventListener('click', () => {
+      const w = detectWorld() || 'Supermarket';
+      openDialogue(w);
+    });
     document.getElementById('de-launch-game-btn').addEventListener('click', () => {
       openDerDieDasGame();
     });
@@ -634,10 +639,389 @@
     });
   }
 
+  
+  // ============================================================
+  // 17. Interactive German Dialogue Simulator (Dialog-Simulator)
+  // ============================================================
+  const DIALOGUES = {
+    Supermarket: {
+      id: 'supermarket_dialogue',
+      title: 'An der Kasse (عند الكاشير في السوبرماركت)',
+      world: 'Supermarket',
+      speaker: 'Kassiererin (الكاشير)',
+      avatar: '🛒',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Guten Tag! Haben Sie alles gefunden? Haben Sie eine Kundenkarte?',
+          npc_ar: 'طاب يومك! هل وجدت كل شيء؟ وهل لديك بطاقة عميل؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'eine Kundenkarte (مفعول به مؤنث)',
+            sub: 'في حالة الـ Akkusativ مع المؤنث، تبقى الأداة (eine) كما هي دون تغيير.'
+          },
+          choices: [
+            {
+              de: 'Nein, ich habe keine Kundenkarte. Ich möchte bitte zahlen.',
+              ar: 'لا، ليس لدي بطاقة عميل. أود أن أدفع الحساب من فضلك.',
+              xp: 20
+            },
+            {
+              de: 'Ja, hier ist meine Karte. Vielen Dank!',
+              ar: 'نعم، تفضل بطاقتي. شكراً جزيلاً!',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Das macht zusammen 18 Euro und 40 Cent. Wie möchten Sie bezahlen?',
+          npc_ar: 'المجموع 18 يورو و40 سنتاً. كيف ترغب في الدفع؟',
+          grammar: {
+            badge: 'Dativ',
+            text: 'mit der Karte (حرف جر + مجرور)',
+            sub: 'حرف الجر (mit) يأتي دائماً بعده Dativ، فتتحول die Karte إلى der Karte.'
+          },
+          choices: [
+            {
+              de: 'Ich bezahle mit der Karte, bitte.',
+              ar: 'سأدفع بالبطاقة المصرفية، من فضلك.',
+              xp: 25
+            },
+            {
+              de: 'Ich bezahle bar. Hier sind zwanzig Euro.',
+              ar: 'سأدفع نقداً. ها هي عشرون يورو.',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Vielen Dank! Und hier ist Ihr Wechselgeld. Brauchen Sie den Kassenbon?',
+          npc_ar: 'شكراً جزيلاً! وتفضل باقي الحساب. هل تحتاج إلى إيصال الشراء (الفاتورة)؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'den Kassenbon (مفعول به مذكر)',
+            sub: 'هنا تحول der Kassenbon إلى den Kassenbon لأنه مفعول به مباشر لفعل brauchen.'
+          },
+          choices: [
+            {
+              de: 'Ja bitte, geben Sie mir den Bon.',
+              ar: 'نعم من فضلك، أعطني الإيصال.',
+              xp: 25
+            },
+            {
+              de: 'Nein danke, ich brauche ihn nicht. Einen schönen Tag noch!',
+              ar: 'لا شكراً، لا أحتاجه. أتمنى لك يوماً جميلاً!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Danke gleichfalls! Auf Wiedersehen und bis zum nächsten Mal! 🎉'
+    },
+    Restaurant: {
+      id: 'restaurant_dialogue',
+      title: 'Bestellen beim Kellner (الطلب من النادل في المطعم)',
+      world: 'Restaurant',
+      speaker: 'Kellner (النادل)',
+      avatar: '🍽️',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Guten Abend! Willkommen im Restaurant. Haben Sie einen Tisch reserviert?',
+          npc_ar: 'مساء الخير! أهلاً بكم في المطعم. هل حجزتم طاولة مسبقاً؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'einen Tisch (مفعول به مذكر)',
+            sub: 'أصل الكلمة der Tisch، وتتحول مع فعل haben إلى einen Tisch (Akkusativ).'
+          },
+          choices: [
+            {
+              de: 'Guten Abend! Nein, haben Sie einen freien Tisch für zwei Personen?',
+              ar: 'مساء الخير! لا، هل لديكم طاولة شاغرة لشخصين؟',
+              xp: 20
+            },
+            {
+              de: 'Ja, wir haben einen Tisch auf den Namen Müller reserviert.',
+              ar: 'نعم، لقد حجزنا طاولة باسم عائلة مولر.',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Sehr gerne, folgen Sie mir bitte! Hier ist die Speisekarte. Was möchten Sie trinken?',
+          npc_ar: 'بكل سرور، تفضلوا معي! ها هي قائمة الطعام. ماذا تودون أن تشربوا؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'einen Kaffee / ein Glas Wasser',
+            sub: 'استخدم دائماً صيغة الأدب: Ich hätte gerne... (أود الحصول على...).'
+          },
+          choices: [
+            {
+              de: 'Ich hätte gerne ein Glas Mineralwasser und einen Apfelsaft, bitte.',
+              ar: 'أود الحصول على كأس ماء معدني وعصير تفاح، من فضلك.',
+              xp: 25
+            },
+            {
+              de: 'Für mich bitte eine Tasse Kaffee mit Milch und Zucker.',
+              ar: 'بالنسبة لي فنجان قهوة مع الحليب والسكر من فضلك.',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Sehr wohl! Hat es Ihnen geschmeckt? Möchten Sie die Rechnung haben?',
+          npc_ar: 'على الرحب والسعة! هل أعجبكم الطعام؟ هل تودون الحصول على الفاتورة؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'die Rechnung (مفعول به مؤنث)',
+            sub: 'طلب الفاتورة بأدب: Könnten wir bitte die Rechnung haben?'
+          },
+          choices: [
+            {
+              de: 'Ja, es war ausgezeichnet! Könnten wir bitte die Rechnung haben?',
+              ar: 'نعم، كان الطعام ممتازاً! هل يمكننا الحصول على الفاتورة من فضلك؟',
+              xp: 25
+            },
+            {
+              de: 'Wir möchten bitte zahlen. Zusammen, bitte!',
+              ar: 'نود أن ندفع الحساب. معاً من فضلك!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Vielen Dank für Ihren Besuch! Beehren Sie uns bald wieder! Auf Wiedersehen! 🌟'
+    },
+    City: {
+      id: 'city_dialogue',
+      title: 'Nach dem Weg fragen (السؤال عن الطريق في المدينة)',
+      world: 'City',
+      speaker: 'Passant (أحد المارة)',
+      avatar: '🗺️',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Hallo! Kann ich Ihnen weiterhelfen? Suchen Sie etwas?',
+          npc_ar: 'مرحباً! هل يمكنني مساعدتك؟ هل تبحث عن شيء؟',
+          grammar: {
+            badge: 'Dativ',
+            text: 'zum Hauptbahnhof (zu + dem)',
+            sub: 'حرف الجر zu يتطلب دائماً Dativ: zu + dem Bahnhof = zum Bahnhof.'
+          },
+          choices: [
+            {
+              de: 'Entschuldigung, wie komme ich bitte zum Hauptbahnhof?',
+              ar: 'معذرة، كيف أصل إلى محطة القطار المركزية من فضلك؟',
+              xp: 20
+            },
+            {
+              de: 'Gibt es hier in der Nähe eine Apotheke oder ein Krankenhaus?',
+              ar: 'هل توجد هنا صيدلية قريبة أو مستشفى؟',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Gehen Sie geradeaus bis zur Ampel, dann biegen Sie nach links in die Schillerstraße ein.',
+          npc_ar: 'امشِ إلى الأمام مباشرة حتى إشارة المرور، ثم انعطف يساراً إلى شارع شيلر.',
+          grammar: {
+            badge: 'Dativ',
+            text: 'bis zur Ampel (zu + der)',
+            sub: 'الاسم المؤنث die Ampel يصبح zur Ampel (zu + der) في حالة المجرور Dativ.'
+          },
+          choices: [
+            {
+              de: 'Ist es weit von hier? Kann ich zu Fuß dorthin gehen?',
+              ar: 'هل المكان بعيد من هنا؟ هل يمكنني الذهاب إلى هناك مشياً؟',
+              xp: 25
+            },
+            {
+              de: 'Muss ich danach noch die Straße überqueren?',
+              ar: 'هل يجب عليّ بعد ذلك عبور الشارع أيضاً؟',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Nein, es sind nur etwa fünf Gehminuten. Sie können das Gebäude direkt sehen!',
+          npc_ar: 'لا، المسافة حوالي خمس دقائق مشياً فقط. يمكنك رؤية المبنى مباشرة!',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'das Gebäude sehen',
+            sub: 'المحايد das يبقى كما هو في الـ Akkusativ.'
+          },
+          choices: [
+            {
+              de: 'Vielen herzlichen Dank für Ihre Hilfe! Auf Wiedersehen!',
+              ar: 'شكراً جزيلاً من القلب على مساعدتك! إلى اللقاء!',
+              xp: 25
+            },
+            {
+              de: 'Das ist wunderbar, danke schön und einen schönen Tag!',
+              ar: 'هذا رائع، شكراً جزيلاً وأتمنى لك يوماً جميلاً!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Gern geschehen! Gute Reise und viel Erfolg! 👋'
+    }
+  };
+
+  // Launch Dialogue Flow
+  function openDialogue(worldName) {
+    const dialogue = DIALOGUES[worldName] || DIALOGUES.Supermarket;
+    let currentStepIndex = 0;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'de-dialogue-overlay';
+    overlay.id = 'de-active-dialogue-modal';
+
+    function renderStep() {
+      const step = dialogue.steps[currentStepIndex];
+      if (!step) {
+        // Outro / Finish
+        overlay.innerHTML = `
+          <div class="de-dialogue-box">
+            <div class="de-dialogue-top">
+              <div class="de-dialogue-title-wrap">
+                <div class="de-dialogue-avatar">${dialogue.avatar}</div>
+                <div>
+                  <div class="de-dialogue-speaker-name">${dialogue.speaker}</div>
+                  <div class="de-dialogue-sub">${dialogue.title}</div>
+                </div>
+              </div>
+              <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.2);" id="de-dlg-close">&times;</button>
+            </div>
+            <div class="de-dialogue-body" style="text-align:center; padding:36px 24px;">
+              <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+              <div style="font-size:24px; font-weight:900; color:#0f172a; margin-bottom:6px;">Wunderbar! المحادثة اكتملت!</div>
+              <div style="font-size:16px; font-weight:700; color:#10b981; margin-bottom:18px;">+${dialogue.rewardXP} XP مكتسبة</div>
+              <div class="de-npc-speech-bubble" style="text-align:center; margin-bottom:24px;">
+                <div class="de-speech-text-de">${dialogue.outro}</div>
+              </div>
+              <button class="de-action-btn de-btn-speak" style="margin:0 auto; max-width:240px;" id="de-dlg-finish-btn">
+                <span>✓</span> <span>إنهاء والعودة للعالم</span>
+              </button>
+            </div>
+          </div>
+        `;
+        speakGerman(dialogue.outro);
+        State.addXP(dialogue.rewardXP, `أتممت محادثة ${dialogue.title}!`);
+        playSFX('LessonComplete');
+        
+        document.getElementById('de-dlg-close').addEventListener('click', () => overlay.remove());
+        document.getElementById('de-dlg-finish-btn').addEventListener('click', () => overlay.remove());
+        return;
+      }
+
+      overlay.innerHTML = `
+        <div class="de-dialogue-box">
+          <div class="de-dialogue-top">
+            <div class="de-dialogue-title-wrap">
+              <div class="de-dialogue-avatar">${dialogue.avatar}</div>
+              <div>
+                <div class="de-dialogue-speaker-name">${dialogue.speaker}</div>
+                <div class="de-dialogue-sub">${dialogue.title} - خطوة ${currentStepIndex + 1}/${dialogue.steps.length}</div>
+              </div>
+            </div>
+            <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.2);" id="de-dlg-close">&times;</button>
+          </div>
+          <div class="de-dialogue-body">
+            <div class="de-npc-speech-bubble">
+              <div class="de-speech-text-de">${step.npc}</div>
+              <div class="de-speech-text-ar">${step.npc_ar}</div>
+              <button class="de-speech-listen-btn" id="de-npc-listen-btn">
+                <span>🔊</span> <span>استمع مرة أخرى</span>
+              </button>
+            </div>
+
+            <div class="de-grammar-callout">
+              <span class="de-grammar-badge ${step.grammar.badge === 'Akkusativ' ? 'badge-akkusativ' : 'badge-dativ'}">
+                ${step.grammar.badge}
+              </span>
+              <div>
+                <div class="de-grammar-text">${step.grammar.text}</div>
+                <div class="de-grammar-sub">${step.grammar.sub}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="de-choices-header">اختر ردك باللغة الألمانية (أو انطق به):</div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                ${step.choices.map((c, idx) => `
+                  <div class="de-choice-option" data-idx="${idx}">
+                    <div style="text-align:left;">
+                      <div class="de-choice-de">${c.de}</div>
+                      <div class="de-choice-ar">${c.ar}</div>
+                    </div>
+                    <div class="de-choice-speak-icon" title="انطق هذا الرد أو اضغط عليه">
+                      🗣️
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Speak NPC line
+      speakGerman(step.npc);
+
+      // Listen again button
+      document.getElementById('de-npc-listen-btn').addEventListener('click', () => {
+        speakGerman(step.npc);
+      });
+
+      // Close button
+      document.getElementById('de-dlg-close').addEventListener('click', () => {
+        overlay.remove();
+      });
+
+      // Option click handlers
+      overlay.querySelectorAll('.de-choice-option').forEach(optEl => {
+        optEl.addEventListener('click', () => {
+          const idx = parseInt(optEl.getAttribute('data-idx'), 10);
+          const chosen = step.choices[idx];
+          playSFX('Correct');
+          speakGerman(chosen.de);
+          State.addXP(chosen.xp, 'رد ألماني صحيح');
+          currentStepIndex++;
+          setTimeout(renderStep, 1100);
+        });
+      });
+    }
+
+    document.body.appendChild(overlay);
+    renderStep();
+  }
+
+  // 18. World Dialogue Trigger in 3D Scenes
+  function renderWorldDialogueTrigger() {
+    const world = detectWorld();
+    if (!world || !DIALOGUES[world]) return;
+    if (document.getElementById('de-world-dialogue-btn')) return;
+
+    const dlg = DIALOGUES[world];
+    const trigger = document.createElement('button');
+    trigger.id = 'de-world-dialogue-btn';
+    trigger.className = 'de-world-dialogue-trigger';
+    trigger.innerHTML = `
+      <span>${dlg.avatar}</span>
+      <span>محادثة تفاعلية: ${dlg.title.split(' ')[0]}</span>
+    `;
+    trigger.addEventListener('click', () => {
+      openDialogue(world);
+    });
+    document.body.appendChild(trigger);
+  }
+
   // 16. Initialize everything on load
   function init() {
     renderHUD();
     renderQuestWidget();
+    renderWorldDialogueTrigger();
     setupObjectListeners();
     console.log('✅ German Learning Engine (Deutsche Lern-Engine) active!');
   }
@@ -656,6 +1040,8 @@
     speakGerman,
     openEnhancedWordModal,
     openDerDieDasGame,
+    openDialogue,
+    DIALOGUES,
     handleItemInteraction
   };
 
