@@ -1,0 +1,413 @@
+/* ============================================================
+   German Life Simulator Styles (Deutsches Lebens-Simulations-System)
+   ============================================================ */
+
+:root {
+  --life-primary: #0284c7;
+  --life-gold: #f59e0b;
+  --life-emerald: #10b981;
+  --life-slate: #0f172a;
+}
+
+/* Life Top Navigation HUD */
+.de-life-hud {
+  position: fixed;
+  top: 70px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  padding: 8px 16px;
+  border-radius: 40px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  z-index: 999990;
+  font-family: 'Nunito', system-ui, sans-serif;
+  user-select: none;
+  animation: deSlideDown 0.4s ease-out;
+}
+
+.de-life-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e293b;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.de-life-stat.money {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.de-life-stat.energy {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.de-life-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.de-life-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.de-life-btn.highlight {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: white;
+  border: none;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3);
+}
+
+.de-life-btn.highlight:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+}
+
+/* Life Management Full Modal */
+.de-life-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(10px);
+  z-index: 10000010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Nunito', system-ui, sans-serif;
+  animation: deFadeIn 0.3s ease;
+}
+
+.de-life-modal {
+  width: 100%;
+  max-width: 720px;
+  background: white;
+  border-radius: 32px;
+  box-shadow: 0 25px 70px rgba(0,0,0,0.4);
+  overflow: hidden;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: deModalPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.de-life-header {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+  padding: 22px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.de-life-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 6px;
+}
+
+.de-life-tab {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.de-life-tab.active {
+  background: white;
+  color: #0284c7;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.de-life-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* NPC Cards in Friends Tab */
+.de-npc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.de-npc-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 18px;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.de-npc-card:hover {
+  transform: translateY(-2px);
+  border-color: #38bdf8;
+  box-shadow: 0 8px 20px rgba(2, 132, 199, 0.1);
+  background: white;
+}
+
+.de-npc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.de-npc-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.de-npc-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
+}
+
+.de-npc-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.de-npc-role {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.de-npc-mood-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.de-npc-personality {
+  font-size: 12px;
+  color: #475569;
+  background: white;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+  font-weight: 600;
+}
+
+.de-npc-friendship-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.de-npc-friendship-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ec4899, #f43f5e);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.de-npc-action-btn {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  transition: all 0.2s;
+}
+
+.de-npc-action-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  transform: translateY(-1px);
+}
+
+/* Jobs Cards in Work Tab */
+.de-job-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.de-job-info h4 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.de-job-info p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.de-job-wage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.de-job-work-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s;
+}
+
+.de-job-work-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+}
+
+/* Properties in Real Estate Tab */
+.de-property-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 22px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.de-property-owned-badge {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid #bbf7d0;
+}
+
+.de-buy-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  transition: all 0.2s;
+}
+
+.de-buy-btn:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  transform: translateY(-2px);
+}
+
+/* Floating NPC In-World Indicator */
+.de-world-npc-beacon {
+  position: fixed;
+  bottom: 84px;
+  right: 24px;
+  background: linear-gradient(135deg, #0284c7, #0f172a);
+  color: white;
+  border: 2px solid #38bdf8;
+  border-radius: 50px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 999996;
+  font-family: 'Nunito', sans-serif;
+  transition: all 0.2s;
+  animation: dePulse 2.4s infinite;
+}
+
+.de-world-npc-beacon:hover {
+  transform: scale(1.05);
+  border-color: #7dd3fc;
+}
+
+@media (max-width: 640px) {
+  .de-life-hud {
+    top: auto;
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    justify-content: space-between;
+    padding: 6px 12px;
+  }
+}
