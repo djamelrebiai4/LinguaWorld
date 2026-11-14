@@ -989,26 +989,11 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Also intercept 3D Canvas clicks via raycaster inspection
-    window.addEventListener('pointerup', (e) => {
-      // Small timeout to let Three.js process the click
-      setTimeout(() => {
-        // Check if any element or state recorded an interaction
-        const activeItem = localStorage.getItem('unlockedWords');
-        if (activeItem) {
-          try {
-            const parsed = JSON.parse(activeItem);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const last = parsed[parsed.length - 1];
-              const rawName = (last.name || last.id || last.word || '').replace(/^I_/, '').toLowerCase();
-              if (rawName && GERMAN_VOCAB[rawName]) {
-                handleItemInteraction(rawName);
-              }
-            }
-          } catch(e) {}
-        }
-      }, 120);
-    });
+    const onWorldObjectClick = (event) => {
+      const key = event.detail && event.detail.key;
+      if (typeof key === 'string') handleItemInteraction(key);
+    };
+    window.addEventListener('german-world-object-click', onWorldObjectClick);
   }
 
 

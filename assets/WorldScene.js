@@ -271,7 +271,7 @@ function useWorldModel(modelPath, collisionPath, collisionNode, playerStart, onP
         const isCityModel = modelPath === '/Grounds/LinguaCity.glb';
         object.receiveShadow = isCityModel;
         object.castShadow = isCityModel &&
-          !/ground|sea|street|canal|boundary|asphalt|sidewalk|road|grass|collision/i.test(object.name);
+          !/ground|sea|street|canal|boundary|asphalt|sidewalk|road|grass|collision|^I_/i.test(object.name);
         if (materials.MazeMat) object.material = materials.MazeMat;
       }
       if (modelPath === '/Grounds/Restaurant.glb' &&
@@ -931,8 +931,38 @@ export default function WorldScene({
   isPaused,
   isMobile
 }) {
+  const handleObjectClick = React.useCallback((objectName) => {
+    if (typeof objectName === 'string' && objectName.startsWith('I_')) {
+      const vocabularyKey = objectName.slice(2).split('|')[0]
+        .replace(/_/g, ' ')
+        .trim()
+        .toLowerCase();
+      let unlockedWords;
+      try {
+        unlockedWords = JSON.parse(localStorage.getItem('unlockedWords') || '[]');
+      } catch (error) {
+        console.error('Could not read unlocked vocabulary after a world-object click:', error);
+        unlockedWords = [];
+      }
+
+      const language = localStorage.getItem('currentLanguage') || 'es';
+      const alreadyUnlocked = Array.isArray(unlockedWords) && unlockedWords.some((word) =>
+        word && typeof word.english === 'string' &&
+        word.english.trim().toLowerCase() === vocabularyKey &&
+        (word.language || 'es') === language
+      );
+      if (alreadyUnlocked) {
+        window.dispatchEvent(new CustomEvent('german-world-object-click', {
+          detail: { key: vocabularyKey }
+        }));
+      }
+    }
+
+    if (onObjectClick) onObjectClick(objectName);
+  }, [onObjectClick]);
+
   return h(React.Fragment, null,
-    h(ObjectInteraction, { onObjectClick, isPaused, isMobile }),
+    h(ObjectInteraction, { onObjectClick: handleObjectClick, isPaused, isMobile }),
     h('ambientLight', { intensity: 0.1, color: 0xffffff }),
     h('hemisphereLight', { skyColor: 0x87ceeb, groundColor: 0x8b8b8b, intensity: 0.2 }),
     h('directionalLight', { position: [10, 20, 10], intensity: 0.1, color: 0xfff0a0 }),

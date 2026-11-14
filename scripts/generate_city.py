@@ -55,6 +55,11 @@ MATERIALS = {
     "collision": {"color": [0.8, 0.8, 0.8], "roughness": 1}
 }
 
+INTERACTION_KEYS = (
+    "street", "building", "door", "tree", "street_light", "car", "bench",
+    "traffic_light", "park", "school", "supermarket", "coffee_shop", "house"
+)
+
 
 class MeshBuilder:
     def __init__(self):
@@ -181,6 +186,11 @@ class City:
         self.collision = MeshBuilder()
         self.buildings = []
 
+    def interaction_box(self, key, center, size):
+        if key not in INTERACTION_KEYS:
+            raise ValueError(f"Unknown city interaction vocabulary key: {key}")
+        self.visual.box(f"interaction_{key}", center, size)
+
     def box(self, material, center, size, collision=False, visible=True):
         if visible:
             self.visual.box(material, center, size)
@@ -201,6 +211,12 @@ class City:
         midpoint = ((x1 + x2) / 2, (z1 + z2) / 2)
         self.box("asphalt", (midpoint[0], 0.035, midpoint[1]),
                  (length, 0.08, width) if horizontal else (width, 0.08, length))
+        self.interaction_box(
+            "street",
+            (midpoint[0], 0.12, midpoint[1]),
+            (length, 0.08, width + sidewalk * 2) if horizontal
+            else (width + sidewalk * 2, 0.08, length)
+        )
         self.collision.box("collision", (midpoint[0], -0.22, midpoint[1]),
                            (length, 0.45, width + sidewalk * 2 + 0.7)
                            if horizontal else (width + sidewalk * 2 + 0.7, 0.45, length))
@@ -359,6 +375,17 @@ class City:
                  front="north", label="", sign="sign_home"):
         height = floors * 3.05
         self.buildings.append((x, z, width, depth, height, front, style))
+        building_key = {
+            "SCHULE": "school",
+            "MARKT": "supermarket",
+            "CAFE": "coffee_shop",
+            "HAUS": "house"
+        }.get(label, "building")
+        self.interaction_box(
+            building_key,
+            (x, (height + 2.8) / 2, z),
+            (width + 0.12, height + 2.8, depth + 0.12)
+        )
         self.box(wall, (x, height / 2, z), (width, height, depth))
         self.box("trim", (x, 0.35, z), (width + 0.18, 0.3, depth + 0.18))
         door_width = 1.5
@@ -395,6 +422,20 @@ class City:
                                (wall_thickness, height - door_height, door_width))
             door_z = z
             door_x = front_x
+
+        if front == "north":
+            door_center = (door_x, door_height / 2, door_z + 0.13)
+            door_size = (door_width, door_height, 0.12)
+        elif front == "south":
+            door_center = (door_x, door_height / 2, door_z - 0.13)
+            door_size = (door_width, door_height, 0.12)
+        elif front == "east":
+            door_center = (door_x + 0.13, door_height / 2, door_z)
+            door_size = (0.12, door_height, door_width)
+        else:
+            door_center = (door_x - 0.13, door_height / 2, door_z)
+            door_size = (0.12, door_height, door_width)
+        self.interaction_box("door", door_center, door_size)
 
         if style in ("house", "shop", "school", "market"):
             floors_on_side = floors
@@ -475,6 +516,7 @@ class City:
                              (board_width / stripe_count, 0.14, 1.04))
 
     def lamp(self, x, z):
+        self.interaction_box("street_light", (x + 0.45, 2.6, z), (1.45, 5.2, 0.72))
         self.box("metal", (x, 0.24, z), (0.54, 0.48, 0.54), collision=True)
         self.box("metal", (x, 2.7, z), (0.18, 4.6, 0.18), collision=True)
         self.box("metal", (x + 0.45, 4.92, z), (1.05, 0.12, 0.14))
@@ -492,6 +534,7 @@ class City:
                                (1, 0.85, 1), 3, 6)
 
     def bench(self, x, z, rotation=0):
+        self.interaction_box("bench", (x, 0.65, z), (2.05, 1.25, 1.05))
         cosine, sine = math.cos(rotation), math.sin(rotation)
 
         def place(local_x, local_z):
@@ -512,6 +555,11 @@ class City:
 
     def tree(self, x, z, scale=1):
         trunk_height = 3.4 * scale
+        self.interaction_box(
+            "tree",
+            (x, (trunk_height + 3.6 * scale) / 2, z),
+            (5.2 * scale, trunk_height + 3.6 * scale, 4.8 * scale)
+        )
         self.visual.cylinder("bark", (x, trunk_height / 2, z), 0.28 * scale,
                              0.2 * scale, trunk_height, 8)
         self.collision.box("collision", (x, trunk_height / 2, z),
@@ -524,6 +572,7 @@ class City:
 
     def car(self, x, z, color, rotation=0):
         length, width = 4.4, 1.86
+        self.interaction_box("car", (x, 0.9, z), (5.1, 1.9, 2.35))
         cosine, sine = math.cos(rotation), math.sin(rotation)
 
         def place(local_x, local_z, y):
@@ -542,6 +591,7 @@ class City:
             self.box("lamp_glow", (px, py, pz), (0.08, 0.22, 0.35))
 
     def traffic_light(self, x, z):
+        self.interaction_box("traffic_light", (x, 2.5, z), (0.85, 5.1, 0.85))
         self.box("metal", (x, 2.4, z), (0.16, 4.8, 0.16), collision=True)
         self.box("metal", (x, 4.6, z), (0.62, 1.35, 0.5))
         for index, material in enumerate(("car_red", "flower_yellow", "foliage_dark")):
@@ -654,6 +704,7 @@ class City:
         self.bench(122, 275, math.pi / 2)
 
         self.box("grass", (-170, 0.015, 130), (62, 0.08, 50))
+        self.interaction_box("park", (-170, 0.12, 130), (62, 0.08, 50))
         for x, z in ((-190, 112), (-170, 112), (-150, 112), (-190, 136),
                      (-150, 136), (-180, 148), (-160, 148)):
             self.tree(x, z, 0.75)
@@ -790,6 +841,20 @@ def write_glb(path, geometry, collision=False):
             material_indices[name] = index
             gltf_materials.append(material)
 
+        for key in INTERACTION_KEYS:
+            material_indices[f"interaction_{key}"] = len(gltf_materials)
+            gltf_materials.append({
+                "name": f"interaction_{key}",
+                "alphaMode": "MASK",
+                "alphaCutoff": 0.5,
+                "doubleSided": True,
+                "pbrMetallicRoughness": {
+                    "baseColorFactor": [1, 1, 1, 0],
+                    "metallicFactor": 0,
+                    "roughnessFactor": 1
+                }
+            })
+
     active_materials = ["collision"] if collision else list(geometry.vertices)
     for material_name in active_materials:
         values = geometry.vertices.get(material_name, [])
@@ -855,8 +920,11 @@ def write_glb(path, geometry, collision=False):
             "min": [min(indices)],
             "max": [max(indices)]
         })
+        interactive = material_name.startswith("interaction_")
+        object_name = f"I_{material_name.removeprefix('interaction_')}" if interactive \
+            else f"city_{material_name}"
         meshes.append({
-            "name": f"city_{material_name}",
+            "name": object_name,
             "primitives": [{
                 "attributes": {
                     "POSITION": position_accessor,
@@ -869,7 +937,7 @@ def write_glb(path, geometry, collision=False):
             }]
         })
         nodes.append({
-            "name": "city_Collision" if collision else f"city_{material_name}",
+            "name": "city_Collision" if collision else object_name,
             "mesh": len(meshes) - 1
         })
 
