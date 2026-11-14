@@ -1683,6 +1683,7 @@ body.npc-chat-open .de-world-npc-beacon {
 .loading-screen::after {
   position: absolute;
   inset: -18%;
+  z-index: 0;
   content: "";
   pointer-events: none;
 }
@@ -1718,10 +1719,10 @@ body.npc-chat-open .de-world-npc-beacon {
   padding: 34px 32px 28px;
   border: 1px solid rgba(220, 247, 237, 0.17);
   border-radius: 28px;
-  background: linear-gradient(145deg, rgba(16, 43, 40, 0.8), rgba(11, 25, 34, 0.76));
+  background: linear-gradient(145deg, rgba(16, 43, 40, 0.9), rgba(11, 25, 34, 0.84));
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.34), inset 0 1px rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .loading-content::before,
