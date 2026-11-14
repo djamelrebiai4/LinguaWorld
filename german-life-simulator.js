@@ -882,7 +882,10 @@
             <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
               aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
               title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
-              <span aria-hidden="true">◉</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                <circle cx="12" cy="12" r="2.5"></circle>
+              </svg>
               <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
             </button>
           </div>
