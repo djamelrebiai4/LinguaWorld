@@ -949,7 +949,7 @@ const WORLD_NPCS = {
     npcKey: 'maria',
     name: { ar: 'ماريا فيشر', en: 'Maria Fischer' },
     model: 'Ranger',
-    path: [{ x: -6, z: 2 }, { x: 4, z: 2 }, { x: 4, z: 7 }, { x: -6, z: 7 }],
+    path: [{ x: -6, z: 10 }, { x: 4, z: 10 }, { x: 4, z: 14 }, { x: -6, z: 14 }],
     speed: 0.9,
     walkAnimation: 'Walking_A',
     activityAnimation: 'Interact',

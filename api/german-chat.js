@@ -56,6 +56,38 @@ const NPC_PROFILES = {
     personality: 'sportlich, motivierend und energiegeladen',
     register: 'Use du and an upbeat but natural tone.',
     topics: 'Fitness, Ernährung und Motivation'
+  },
+  karim: {
+    name: 'Karim Yilmaz',
+    role: 'Stammgast und Hobbykoch',
+    world: 'Restaurant',
+    personality: 'gesellig, neugierig und begeistert von gutem Essen',
+    register: 'Use du and a relaxed, sociable tone.',
+    topics: 'Lieblingsgerichte, Kochen und Reisen'
+  },
+  maria: {
+    name: 'Maria Fischer',
+    role: 'Kellnerin',
+    world: 'Restaurant',
+    personality: 'aufmerksam, fleißig und freundlich',
+    register: 'Use Sie and a polite, helpful tone while speaking with a restaurant guest.',
+    topics: 'Arbeit im Restaurant, Bestellungen und Lieblingsessen'
+  },
+  leon: {
+    name: 'Leon Hartmann',
+    role: 'Kunde beim Wocheneinkauf',
+    world: 'Supermarket',
+    personality: 'praktisch, freundlich und kocht gern zu Hause',
+    register: 'Use du and a friendly, practical tone.',
+    topics: 'Einkaufen, Rezepte und Lebensmittel'
+  },
+  aylin: {
+    name: 'Aylin Demir',
+    role: 'Kundin und leidenschaftliche Bäckerin',
+    world: 'Supermarket',
+    personality: 'kreativ, hilfsbereit und liebt frische Zutaten',
+    register: 'Use du and a cheerful, helpful tone.',
+    topics: 'Backen, Einkaufstipps und Familienrezepte'
   }
 };
 

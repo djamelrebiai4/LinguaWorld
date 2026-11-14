@@ -282,6 +282,114 @@
           }
         ]
       }
+    },
+    karim: {
+      id: 'karim',
+      name: 'Karim Yilmaz',
+      role: 'Der Stammgast und Hobbykoch (زبون دائم وطاهٍ هاوٍ)',
+      world: 'Restaurant',
+      avatar: '🍲',
+      personality: 'Gesellig, neugierig und begeistert von gutem Essen (اجتماعي وفضولي ويحب الطعام الجيد)',
+      mood: 'Entspannt 😊',
+      friendship: parseInt(localStorage.getItem('de_npc_karim_fr') || '12', 10),
+      topics: ['Lieblingsgerichte', 'Kochen', 'Reisen'],
+      dialogue: {
+        greeting: 'Hallo! Ich probiere heute ein neues Gericht. Was isst du gern?',
+        greeting_ar: 'مرحباً! أجرب اليوم طبقاً جديداً. ما الطعام الذي تحبه؟',
+        responses: [
+          {
+            de: 'Ich probiere gern Gerichte aus anderen Ländern.',
+            ar: 'أحب تجربة أطباق من بلدان أخرى.',
+            friendshipBonus: 15
+          },
+          {
+            de: 'Was kannst du hier besonders empfehlen?',
+            ar: 'ما الطبق الذي تنصح به هنا؟',
+            friendshipBonus: 10
+          }
+        ]
+      }
+    },
+    maria: {
+      id: 'maria',
+      name: 'Maria Fischer',
+      role: 'Die Kellnerin (نادلة المطعم)',
+      world: 'Restaurant',
+      avatar: '🍽️',
+      personality: 'Aufmerksam, fleißig und immer freundlich (منتبهة ومجتهدة وودودة)',
+      mood: 'Beschäftigt, aber freundlich 🙂',
+      friendship: parseInt(localStorage.getItem('de_npc_maria_fr') || '12', 10),
+      topics: ['Arbeit im Restaurant', 'Bestellungen', 'Lieblingsessen'],
+      dialogue: {
+        greeting: 'Guten Tag! Haben Sie schon gewählt oder darf ich Ihnen helfen?',
+        greeting_ar: 'طاب يومك! هل اخترت طلبك أم أستطيع مساعدتك؟',
+        responses: [
+          {
+            de: 'Könnten Sie mir bitte die Speisekarte bringen?',
+            ar: 'هل يمكنك إحضار قائمة الطعام من فضلك؟',
+            friendshipBonus: 15
+          },
+          {
+            de: 'Was ist heute besonders beliebt?',
+            ar: 'ما الطبق الأكثر طلباً اليوم؟',
+            friendshipBonus: 10
+          }
+        ]
+      }
+    },
+    leon: {
+      id: 'leon',
+      name: 'Leon Hartmann',
+      role: 'Der Kunde auf dem Wocheneinkauf (زبون يتسوق للأسبوع)',
+      world: 'Supermarket',
+      avatar: '🛒',
+      personality: 'Praktisch, freundlich und kocht gern zu Hause (عملي وودود ويحب الطبخ في المنزل)',
+      mood: 'Gut gelaunt 😄',
+      friendship: parseInt(localStorage.getItem('de_npc_leon_fr') || '12', 10),
+      topics: ['Einkaufen', 'Rezepte', 'Lebensmittel'],
+      dialogue: {
+        greeting: 'Hallo! Ich suche alles für das Abendessen. Was steht bei dir auf dem Einkaufszettel?',
+        greeting_ar: 'مرحباً! أبحث عن مكونات العشاء. ماذا كتبت في قائمة مشترياتك؟',
+        responses: [
+          {
+            de: 'Ich brauche Gemüse und frisches Brot.',
+            ar: 'أحتاج إلى الخضروات والخبز الطازج.',
+            friendshipBonus: 15
+          },
+          {
+            de: 'Hast du ein einfaches Rezept für heute Abend?',
+            ar: 'هل لديك وصفة سهلة لهذا المساء؟',
+            friendshipBonus: 10
+          }
+        ]
+      }
+    },
+    aylin: {
+      id: 'aylin',
+      name: 'Aylin Demir',
+      role: 'Die Kundin und leidenschaftliche Bäckerin (زبونة وخبّازة شغوفة)',
+      world: 'Supermarket',
+      avatar: '🥐',
+      personality: 'Kreativ, hilfsbereit und liebt frische Zutaten (مبدعة ومتعاونة وتحب المكونات الطازجة)',
+      mood: 'Fröhlich 😊',
+      friendship: parseInt(localStorage.getItem('de_npc_aylin_fr') || '12', 10),
+      topics: ['Backen', 'Einkaufstipps', 'Familienrezepte'],
+      dialogue: {
+        greeting: 'Hallo! Ich suche Zutaten für einen Kuchen. Backst du auch gern?',
+        greeting_ar: 'مرحباً! أبحث عن مكونات لكعكة. هل تحب الخَبز أيضاً؟',
+        responses: [
+          {
+            de: 'Ja, ich backe gern am Wochenende.',
+            ar: 'نعم، أحب الخَبز في عطلة نهاية الأسبوع.',
+            friendshipBonus: 15
+          },
+          {
+            de: 'Wo finde ich hier das Mehl?',
+            ar: 'أين أجد الدقيق هنا؟',
+            friendshipBonus: 10
+          }
+        ]
+      }
     }
   };
 
