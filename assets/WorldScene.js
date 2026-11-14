@@ -268,9 +268,10 @@ function useWorldModel(modelPath, collisionPath, collisionNode, playerStart, onP
     const clone = scene.clone();
     clone.traverse((object) => {
       if (object.isMesh) {
-        const isCityModel = modelPath === '/Grounds/City.glb';
+        const isCityModel = modelPath === '/Grounds/LinguaCity.glb';
         object.receiveShadow = isCityModel;
-        object.castShadow = isCityModel && !/ground|sea|street|canal|boundary/i.test(object.name);
+        object.castShadow = isCityModel &&
+          !/ground|sea|street|canal|boundary|asphalt|sidewalk|road|grass|collision/i.test(object.name);
         if (materials.MazeMat) object.material = materials.MazeMat;
       }
       if (modelPath === '/Grounds/Restaurant.glb' &&
@@ -343,133 +344,12 @@ function CityWorld({ onPositionsReady }) {
       'shadow-bias': -0.00015
     }),
     useWorldModel(
-      '/Grounds/City.glb',
-      '/Grounds/City_Collision.glb',
+      '/Grounds/LinguaCity.glb',
+      '/Grounds/LinguaCity_Collision.glb',
       'city_Collision',
       LEVEL_STARTS[1],
       onPositionsReady
-    ),
-    h(CityStreetscape)
-  );
-}
-
-function StreetLamp({ position }) {
-  const metal = '#263b3b';
-  return h('group', { position },
-    h('mesh', { position: [0, 0.18, 0], castShadow: true },
-      h('cylinderGeometry', { args: [0.24, 0.32, 0.36, 10] }),
-      h('meshStandardMaterial', { color: '#354747', roughness: 0.72, metalness: 0.25 })),
-    h('mesh', { position: [0, 2.65, 0], castShadow: true },
-      h('cylinderGeometry', { args: [0.075, 0.12, 4.7, 10] }),
-      h('meshStandardMaterial', { color: metal, roughness: 0.55, metalness: 0.42 })),
-    h('mesh', { position: [0.48, 4.87, 0], rotation: [0, 0, Math.PI / 2], castShadow: true },
-      h('cylinderGeometry', { args: [0.055, 0.07, 1.05, 8] }),
-      h('meshStandardMaterial', { color: metal, roughness: 0.55, metalness: 0.42 })),
-    h('mesh', { position: [0.92, 4.65, 0], castShadow: true },
-      h('boxGeometry', { args: [0.48, 0.12, 0.38] }),
-      h('meshStandardMaterial', { color: '#253638', roughness: 0.6, metalness: 0.3 })),
-    h('mesh', { position: [0.92, 4.49, 0], castShadow: true },
-      h('boxGeometry', { args: [0.31, 0.2, 0.24] }),
-      h('meshStandardMaterial', {
-        color: '#f4c985',
-        emissive: '#e8a653',
-        emissiveIntensity: 0.3,
-        roughness: 0.35
-      }))
-  );
-}
-
-function StreetPlanter({ position }) {
-  const leaves = [
-    [-0.62, 0.78, -0.22, 0.34],
-    [-0.2, 0.92, 0.18, 0.42],
-    [0.25, 0.8, -0.18, 0.36],
-    [0.62, 0.9, 0.22, 0.39]
-  ];
-  return h('group', { position },
-    h('mesh', { position: [0, 0.28, 0], castShadow: true, receiveShadow: true },
-      h('boxGeometry', { args: [2.05, 0.56, 1.02] }),
-      h('meshStandardMaterial', { color: '#8f7664', roughness: 0.82 })),
-    h('mesh', { position: [0, 0.59, 0], receiveShadow: true },
-      h('boxGeometry', { args: [1.84, 0.1, 0.82] }),
-      h('meshStandardMaterial', { color: '#423d32', roughness: 1 })),
-    ...leaves.map(([x, y, z, size], index) => h('mesh', {
-      key: index,
-      position: [x, y, z],
-      scale: [size, size * 1.2, size],
-      castShadow: true
-    },
-    h('dodecahedronGeometry', { args: [1, 1] }),
-    h('meshStandardMaterial', {
-      color: index % 2 ? '#547b57' : '#66875c',
-      roughness: 0.9
-    })))
-  );
-}
-
-function StreetBench({ position, rotation = 0 }) {
-  const wood = '#936849';
-  const metal = '#354443';
-  const slat = (x, y, z, dimensions) => h('mesh', {
-    position: [x, y, z],
-    castShadow: true,
-    receiveShadow: true
-  },
-  h('boxGeometry', { args: dimensions }),
-  h('meshStandardMaterial', { color: wood, roughness: 0.78 }));
-  const support = (x, y, z, dimensions) => h('mesh', {
-    position: [x, y, z],
-    castShadow: true
-  },
-  h('boxGeometry', { args: dimensions }),
-  h('meshStandardMaterial', { color: metal, roughness: 0.58, metalness: 0.38 }));
-
-  return h('group', { position, rotation: [0, rotation, 0] },
-    ...[-0.72, 0.72].flatMap((x) => [
-      support(x, 0.26, 0, [0.1, 0.52, 0.82]),
-      support(x, 0.69, -0.31, [0.09, 0.78, 0.1])
-    ]),
-    ...[-0.28, -0.09, 0.1, 0.29].map((z) =>
-      slat(0, 0.53, z, [1.62, 0.075, 0.14])),
-    ...[-0.24, -0.04, 0.16, 0.36].map((y) =>
-      slat(0, y + 0.78, -0.34, [1.62, 0.13, 0.075]))
-  );
-}
-
-function CityStreetscape() {
-  const lamps = [
-    [43, 0, 120],
-    [77, 0, 151],
-    [121, 0, 171],
-    [40, 0, 284],
-    [-157, 0, 279],
-    [160, 0, -227]
-  ];
-  const planters = [
-    [45, 0, 114],
-    [74, 0, 139],
-    [80, 0, 135],
-    [118, 0, 139],
-    [43, 0, 209],
-    [123, 0, 209],
-    [-153, 0, 235],
-    [-110, 0, 235],
-    [121, 0, -218],
-    [158, 0, -218]
-  ];
-  const benches = [
-    { position: [38, 0, 125], rotation: Math.PI / 2 },
-    { position: [77, 0, 164], rotation: Math.PI / 2 },
-    { position: [126, 0, 281], rotation: Math.PI / 2 },
-    { position: [-158, 0, 264], rotation: Math.PI / 2 },
-    { position: [159, 0, -232], rotation: Math.PI / 2 }
-  ];
-
-  return h(React.Fragment, null,
-    lamps.map((position) => h(StreetLamp, { key: `lamp-${position[0]}-${position[1]}`, position })),
-    planters.map((position) =>
-      h(StreetPlanter, { key: `planter-${position[0]}-${position[1]}`, position })),
-    benches.map((bench, index) => h(StreetBench, { key: `bench-${index}`, ...bench }))
+    )
   );
 }
 
