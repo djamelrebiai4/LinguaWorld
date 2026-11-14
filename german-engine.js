@@ -375,33 +375,40 @@
   function renderHUD() {
     if (document.getElementById('de-top-hud')) return;
 
+    const activityGroupLabel = getSupportLanguage() === 'en'
+      ? 'German learning activities'
+      : 'أنشطة تعلم الألمانية';
     const hud = document.createElement('div');
     hud.id = 'de-top-hud';
     hud.className = 'de-hud-bar';
     hud.innerHTML = `
-      <div class="de-hud-lang">
-        <span>🇩🇪</span> <span>Deutsch</span>
+      <div class="de-hud-stats">
+        <div class="de-hud-lang">
+          <span>🇩🇪</span> <span>Deutsch</span>
+        </div>
+        <div class="de-hud-xp">
+          <span>⭐</span> <span id="de-hud-xp-val">${State.xp} XP</span>
+        </div>
+        <div class="de-hud-level">
+          <span>🏆</span> <span id="de-hud-lvl-val">${State.getLevelName()}</span>
+        </div>
+        <label class="de-language-control">
+          <span id="de-support-language-label">${copy('supportLanguage')}</span>
+          <select id="de-support-language" aria-label="${copy('supportLanguage')}">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </select>
+        </label>
       </div>
-      <div class="de-hud-xp">
-        <span>⭐</span> <span id="de-hud-xp-val">${State.xp} XP</span>
+      <div class="de-hud-actions" role="group" aria-label="${activityGroupLabel}">
+        <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
+        <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}">
+          <span>🎮</span> <span>Der Die Das</span>
+        </button>
+        <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="${copy('reviewVocabulary')}">
+          <span aria-hidden="true">📚</span> <span>${copy('reviewVocabulary')}</span>
+        </button>
       </div>
-      <div class="de-hud-level">
-        <span>🏆</span> <span id="de-hud-lvl-val">${State.getLevelName()}</span>
-      </div>
-      <label class="de-language-control">
-        <span id="de-support-language-label">${copy('supportLanguage')}</span>
-        <select id="de-support-language" aria-label="${copy('supportLanguage')}">
-          <option value="ar">العربية</option>
-          <option value="en">English</option>
-        </select>
-      </label>
-      <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
-      <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}">
-        <span>🎮</span> <span>Der Die Das</span>
-      </button>
-      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="${copy('reviewVocabulary')}">
-        📚 <span>${copy('reviewVocabulary')}</span>
-      </button>
     `;
     document.body.appendChild(hud);
     hud.querySelector('#de-support-language').value = getSupportLanguage();

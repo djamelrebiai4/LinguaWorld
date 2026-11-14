@@ -467,14 +467,21 @@
     if (!npcKey) return;
 
     const npc = NPCS[npcKey];
+    const supportLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
+      ? window.GermanEngine.getSupportLanguage()
+      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
     const btn = document.createElement('button');
     btn.id = 'de-npc-world-beacon';
     btn.className = 'de-world-npc-beacon';
+    btn.dir = supportLanguage === 'ar' ? 'rtl' : 'ltr';
+    btn.setAttribute('aria-label', supportLanguage === 'en' ? 'Talk with NPC' : 'فتح محادثة مع الشخصية');
     btn.innerHTML = `
-      <span>${npc.avatar}</span>
-      <span>${npc.avatar} ${npc.name.split(' ')[0]} (${npc.mood.split(' ')[1] || '😊'})</span>
+      <span class="de-world-npc-avatar" aria-hidden="true">${npc.avatar}</span>
+      <span>${supportLanguage === 'en' ? 'Talk with' : 'تحدث مع'}</span>
+      <bdi lang="en" dir="ltr">${npc.name.split(' ')[0]}</bdi>
     `;
     btn.addEventListener('click', () => {
+      if (document.pointerLockElement) document.exitPointerLock();
       openNPCConversation(npcKey);
     });
     document.body.appendChild(btn);
@@ -776,11 +783,19 @@
         listen: 'Listen',
         online: 'Here to chat',
         practiceLabel: 'German practice',
+        friendship: 'Friendship',
+        hideTranslations: 'Hide translations',
+        showTranslations: 'Show translations',
         placeholder: 'Write in German, Arabic, or English…',
         send: 'Send',
-        keyboardHint: 'Enter to send · Shift+Enter for a new line',
+        micComingSoon: 'Voice input coming soon',
+        enterKey: 'Enter',
+        sendHint: 'to send',
+        shiftEnterKey: 'Shift+Enter',
+        newlineHint: 'for a new line',
         suggestions: 'You could start with',
-        privacyNotice: 'Your messages are sent to Groq to generate replies. Do not share personal or confidential information.',
+        privacyBefore: 'Your messages are sent to',
+        privacyAfter: 'to generate replies. Do not share personal or confidential information.',
         typing: 'is typing…',
         connectionError: 'Could not reach the AI. Check your connection and try again.',
         serviceBusy: 'The AI service is busy. Please try again shortly.',
@@ -793,11 +808,19 @@
         listen: 'استمع',
         online: 'موجود للدردشة',
         practiceLabel: 'محادثة تدريبية بالألمانية',
+        friendship: 'مستوى الصداقة',
+        hideTranslations: 'إخفاء الترجمات',
+        showTranslations: 'إظهار الترجمات',
         placeholder: 'اكتب بالألمانية أو العربية أو الإنجليزية…',
         send: 'إرسال',
-        keyboardHint: 'Enter للإرسال · Shift+Enter لسطر جديد',
+        micComingSoon: 'الإدخال الصوتي قريباً',
+        enterKey: 'Enter',
+        sendHint: 'للإرسال',
+        shiftEnterKey: 'Shift+Enter',
+        newlineHint: 'لسطر جديد',
         suggestions: 'يمكنك أن تبدأ بقول',
-        privacyNotice: 'تُرسل رسائلك إلى Groq لإنشاء الردود. لا تكتب معلومات شخصية أو سرية.',
+        privacyBefore: 'تُرسل رسائلك إلى',
+        privacyAfter: 'لإنشاء الردود. لا تكتب معلومات شخصية أو سرية.',
         typing: 'يكتب الآن…',
         connectionError: 'تعذر الاتصال بالذكاء الاصطناعي. تحقق من اتصالك وحاول مجددًا.',
         serviceBusy: 'الخدمة مشغولة الآن. حاول مجددًا بعد قليل.',
@@ -805,45 +828,84 @@
         turnLimit: 'وصلت إلى الحد الأقصى لعدد الرسائل في هذه المحادثة.'
       };
 
+    const showTranslations = localStorage.getItem('lw_npc_translations') !== 'false';
+    const friendshipLabel = getFriendshipStatus(npc.friendship).split(' (')[0];
+    const moodTone = /gestresst|nachdenklich/i.test(npc.mood) ? 'is-warm' : 'is-positive';
+    const suggestedResponses = [...npc.dialogue.responses];
+    if (suggestedResponses.length < 3) {
+      suggestedResponses.push({
+        de: 'Kannst du mir ein neues deutsches Wort beibringen?',
+        ar: 'هل يمكنك تعليمي كلمة ألمانية جديدة؟',
+        friendshipBonus: 10
+      });
+    }
     const overlay = document.createElement('div');
-    overlay.className = 'de-dialogue-overlay';
+    overlay.className = 'de-dialogue-overlay de-npc-chat-overlay';
+    overlay.classList.toggle('translations-hidden', !showTranslations);
+    overlay.setAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
     overlay.innerHTML = `
-      <div class="de-dialogue-box" role="dialog" aria-modal="true" aria-labelledby="de-npc-chat-title">
+      <div class="de-dialogue-box" role="dialog" aria-modal="false" aria-labelledby="de-npc-chat-title">
         <div class="de-dialogue-top de-ai-dialogue-top">
           <div class="de-dialogue-title-wrap">
             <div class="de-dialogue-avatar de-ai-dialogue-avatar">${npc.avatar}</div>
-            <div>
-              <div class="de-dialogue-speaker-name" id="de-npc-chat-title">${npc.name}</div>
-              <div class="de-dialogue-sub de-ai-dialogue-sub">
-                <span class="de-ai-online-indicator" aria-hidden="true"></span>
-                <span>${copy.online}</span>
-                <span class="de-ai-subtitle-divider" aria-hidden="true">·</span>
-                <span>${copy.practiceLabel} · ${npc.role.split('(')[0].trim()}</span>
+            <div class="de-ai-character-heading">
+              <bdi class="de-dialogue-speaker-name" id="de-npc-chat-title" lang="de" dir="auto">${npc.name}</bdi>
+              <div class="de-ai-character-meta">
+                <bdi class="de-ai-character-role" lang="de" dir="ltr">${npc.role.split('(')[0].trim()}</bdi>
+                <span class="de-ai-mood ${moodTone}">
+                  <i class="de-ai-mood-dot" aria-hidden="true"></i>
+                  <bdi lang="de" dir="ltr">${npc.mood}</bdi>
+                </span>
               </div>
             </div>
           </div>
-          <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.2);" id="de-npc-chat-close"
+          <button class="de-modal-close" id="de-npc-chat-close"
             aria-label="${copy.close}" title="${copy.close}">&times;</button>
         </div>
         <div class="de-dialogue-body" id="de-npc-chat-body">
+          <div class="de-ai-friendship" id="de-ai-friendship"
+            title="${copy.friendship}: ${npc.friendship}/100">
+            <div class="de-ai-friendship-label">
+              <span>${copy.friendship}</span>
+              <bdi id="de-ai-friendship-status" lang="de" dir="ltr">${friendshipLabel}</bdi>
+            </div>
+            <div class="de-ai-friendship-track" role="progressbar"
+              aria-label="${copy.friendship}" aria-valuemin="0" aria-valuemax="100"
+              aria-valuenow="${npc.friendship}">
+              <span class="de-ai-friendship-fill" id="de-ai-friendship-fill"
+                style="width:${Math.max(0, Math.min(100, npc.friendship))}%"></span>
+            </div>
+            <span class="de-ai-friendship-points" id="de-ai-friendship-points">${npc.friendship}/100</span>
+          </div>
+          <div class="de-ai-chat-tools">
+            <span class="de-ai-practice-label">${copy.practiceLabel}</span>
+            <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
+              aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
+              title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
+              <span aria-hidden="true">◉</span>
+              <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
+            </button>
+          </div>
           <div class="de-ai-chat-history" id="de-ai-chat-history" role="log" aria-live="polite"></div>
           <div class="de-ai-chat-status" id="de-ai-chat-status" role="status" aria-live="polite"></div>
           <div class="de-ai-suggestions" id="de-ai-suggestions">
             <div class="de-ai-suggestions-title">${copy.suggestions}</div>
-            ${npc.dialogue.responses.map((response, index) => `
+            ${suggestedResponses.slice(0, 3).map((response, index) => `
               <button class="de-ai-suggestion" type="button" data-response-index="${index}">
-                <span class="de-ai-suggestion-de">${response.de}</span>
-                <span class="de-ai-suggestion-translation" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
-                  ${language === 'ar' ? response.ar : ''}
+                <span class="de-ai-suggestion-de" lang="de" dir="ltr"><bdi>${response.de}</bdi></span>
+                <span class="de-ai-suggestion-translation" lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
+                  ${language === 'ar' ? `<bdi>${response.ar}</bdi>` : ''}
                 </span>
-                <span class="de-ai-suggestion-icon" aria-hidden="true">↗</span>
+                <span class="de-ai-suggestion-shortcut" aria-hidden="true">${index + 1}</span>
               </button>
             `).join('')}
           </div>
           <form class="de-ai-chat-form" id="de-ai-chat-form" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
             <div class="de-ai-composer">
-              <textarea id="de-ai-chat-input" maxlength="500" rows="1" required dir="auto"
+              <textarea id="de-ai-chat-input" maxlength="500" rows="1" required dir="auto" lang="${language}"
                 placeholder="${copy.placeholder}" aria-label="${copy.placeholder}"></textarea>
+              <button class="de-ai-mic-button" type="button" disabled
+                aria-label="${copy.micComingSoon}" title="${copy.micComingSoon}">🎙</button>
               <button class="de-ai-send-button" id="de-ai-send-button" type="submit"
                 aria-label="${copy.send}" title="${copy.send}">
                 <span aria-hidden="true">➤</span>
@@ -852,17 +914,26 @@
             </div>
             <div class="de-ai-composer-meta">
               <span id="de-ai-character-count">0/500</span>
-              <span>${copy.keyboardHint}</span>
+              <span class="de-ai-keyboard-hint">
+                <bdi dir="ltr"><kbd>${copy.enterKey}</kbd></bdi>
+                <span dir="auto">${copy.sendHint}</span>
+                <span aria-hidden="true">·</span>
+                <bdi dir="ltr"><kbd>${copy.shiftEnterKey}</kbd></bdi>
+                <span dir="auto">${copy.newlineHint}</span>
+              </span>
             </div>
           </form>
-          <div class="de-ai-privacy-note">${copy.privacyNotice}</div>
-          <div class="de-ai-friendship" id="de-ai-friendship">
-            🤝 ${getFriendshipStatus(npc.friendship)} (${npc.friendship}/100)
+          <div class="de-ai-privacy-note" dir="auto">
+            <span>${copy.privacyBefore}</span> <bdi dir="ltr">Groq</bdi> <span>${copy.privacyAfter}</span>
           </div>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
+    document.body.classList.add('npc-chat-open');
+    window.dispatchEvent(new CustomEvent('german-npc-chat-state', {
+      detail: { open: true, npcKey }
+    }));
 
     const historyElement = overlay.querySelector('#de-ai-chat-history');
     const statusElement = overlay.querySelector('#de-ai-chat-status');
@@ -871,6 +942,11 @@
     const input = overlay.querySelector('#de-ai-chat-input');
     const sendButton = overlay.querySelector('#de-ai-send-button');
     const friendshipElement = overlay.querySelector('#de-ai-friendship');
+    const friendshipProgress = overlay.querySelector('.de-ai-friendship-track');
+    const friendshipFill = overlay.querySelector('#de-ai-friendship-fill');
+    const friendshipStatusElement = overlay.querySelector('#de-ai-friendship-status');
+    const friendshipPoints = overlay.querySelector('#de-ai-friendship-points');
+    const translationToggle = overlay.querySelector('#de-ai-translation-toggle');
     const characterCount = overlay.querySelector('#de-ai-character-count');
     const npcShortName = npcKey === 'herr_weber' ? 'Herr Weber' : npc.name.split(' ')[0];
     const messages = [];
@@ -878,10 +954,27 @@
     let isBusy = false;
     let rewardGranted = false;
     let requestController = null;
+    let activeTypewriter = null;
+    let activeListenButton = null;
+    let audioIndicatorTimer = null;
+    let lastMessageRole = null;
 
-    function appendMessage(role, germanText, translation, suggestedTranslation = '') {
+    function shouldStickToBottom() {
+      return historyElement.scrollHeight - historyElement.scrollTop - historyElement.clientHeight < 72;
+    }
+
+    function scrollToBottomIfPinned(wasPinned) {
+      if (wasPinned) {
+        historyElement.scrollTo({ top: historyElement.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function appendMessage(role, germanText, translation, suggestedTranslation = '', options = {}) {
+      const wasPinned = shouldStickToBottom();
       const row = document.createElement('div');
       row.className = `de-ai-message-row ${role}`;
+      if (lastMessageRole === role) row.classList.add('continued');
+      lastMessageRole = role;
 
       const avatar = document.createElement('div');
       avatar.className = `de-ai-message-avatar ${role}`;
@@ -895,11 +988,16 @@
       meta.className = 'de-ai-message-meta';
       const speaker = document.createElement('span');
       speaker.className = 'de-ai-message-speaker';
-      speaker.textContent = role === 'assistant' ? npcShortName : copy.you;
+      const speakerName = document.createElement('bdi');
+      speakerName.lang = role === 'assistant' ? 'de' : language;
+      speakerName.dir = 'auto';
+      speakerName.textContent = role === 'assistant' ? npcShortName : copy.you;
+      speaker.appendChild(speakerName);
       const time = document.createElement('time');
       time.className = 'de-ai-message-time';
       const timestamp = new Date();
       time.dateTime = timestamp.toISOString();
+      time.dir = 'ltr';
       time.textContent = timestamp.toLocaleTimeString(language === 'ar' ? 'ar' : 'en-GB', {
         hour: '2-digit',
         minute: '2-digit'
@@ -910,8 +1008,11 @@
       const german = document.createElement('div');
       german.className = 'de-ai-message-german';
       german.lang = role === 'assistant' || suggestedTranslation ? 'de' : language;
-      german.dir = role === 'assistant' ? 'ltr' : 'auto';
-      german.textContent = germanText;
+      german.dir = role === 'assistant' || suggestedTranslation ? 'ltr' : 'auto';
+      const germanContent = document.createElement('bdi');
+      germanContent.dir = german.dir;
+      germanContent.textContent = options.typewriter ? '' : germanText;
+      german.appendChild(germanContent);
       message.appendChild(german);
 
       const translatedText = translation || suggestedTranslation;
@@ -920,32 +1021,41 @@
         translated.className = 'de-ai-message-translation';
         translated.lang = language;
         translated.dir = language === 'ar' ? 'rtl' : 'ltr';
-        translated.textContent = translatedText;
+        const translatedContent = document.createElement('bdi');
+        translatedContent.dir = translated.dir;
+        translatedContent.textContent = translatedText;
+        translated.appendChild(translatedContent);
         message.appendChild(translated);
       }
 
+      let listenButton = null;
       if (role === 'assistant') {
-        const listenButton = document.createElement('button');
+        listenButton = document.createElement('button');
         listenButton.className = 'de-ai-listen-button';
         listenButton.type = 'button';
         listenButton.setAttribute('aria-label', copy.listen);
-        listenButton.textContent = `🔊 ${copy.listen}`;
-        listenButton.addEventListener('click', () => speak(germanText));
+        listenButton.title = copy.listen;
+        listenButton.textContent = '🔊';
+        listenButton.addEventListener('click', () => speakMessage(germanText, listenButton));
         message.appendChild(listenButton);
+        window.dispatchEvent(new CustomEvent('german-npc-speech', {
+          detail: { npcKey, text: germanText }
+        }));
       }
 
       if (role === 'assistant') row.append(avatar, message);
       else row.append(message, avatar);
       historyElement.appendChild(row);
-      historyElement.scrollTop = historyElement.scrollHeight;
-      return row;
+      scrollToBottomIfPinned(wasPinned);
+      return { row, germanContent, listenButton };
     }
 
     function appendTypingIndicator() {
+      const wasPinned = shouldStickToBottom();
       const row = document.createElement('div');
       row.className = 'de-ai-message-row assistant de-ai-typing';
       row.setAttribute('role', 'status');
-      row.setAttribute('aria-label', `${npcShortName} ${copy.typing}`);
+      row.setAttribute('aria-label', copy.typing);
 
       const avatar = document.createElement('div');
       avatar.className = 'de-ai-message-avatar assistant';
@@ -956,7 +1066,13 @@
       bubble.className = 'de-ai-message assistant de-ai-typing-bubble';
       const label = document.createElement('span');
       label.className = 'de-ai-typing-label';
-      label.textContent = `${npcShortName} ${copy.typing}`;
+      const speakerName = document.createElement('bdi');
+      speakerName.dir = 'auto';
+      speakerName.textContent = npcShortName;
+      const typingText = document.createElement('span');
+      typingText.dir = 'auto';
+      typingText.textContent = copy.typing;
+      label.append(speakerName, document.createTextNode(' '), typingText);
       const dots = document.createElement('span');
       dots.className = 'de-ai-typing-dots';
       dots.setAttribute('aria-hidden', 'true');
@@ -964,8 +1080,98 @@
       bubble.append(label, dots);
       row.append(avatar, bubble);
       historyElement.appendChild(row);
-      historyElement.scrollTop = historyElement.scrollHeight;
+      scrollToBottomIfPinned(wasPinned);
       return row;
+    }
+
+    function typewriteMessage(message, text) {
+      const characters = Array.from(text);
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        message.germanContent.textContent = text;
+        return;
+      }
+
+      const suggestionButtons = overlay.querySelectorAll('.de-ai-suggestion');
+      suggestionButtons.forEach((button) => {
+        button.disabled = true;
+      });
+      const controller = {
+        row: message.row,
+        content: message.germanContent,
+        text,
+        index: 0,
+        timer: null,
+        skipClick: null,
+        finish: null,
+        previousLiveMode: historyElement.getAttribute('aria-live') || 'polite'
+      };
+      controller.finish = () => {
+        if (activeTypewriter !== controller) return;
+        window.clearInterval(controller.timer);
+        controller.content.textContent = controller.text;
+        controller.row.classList.remove('is-typewriting');
+        controller.row.removeEventListener('click', controller.skipClick);
+        historyElement.setAttribute('aria-live', controller.previousLiveMode);
+        activeTypewriter = null;
+        suggestionButtons.forEach((button) => {
+          button.disabled = isBusy;
+        });
+      };
+      controller.skipClick = (event) => {
+        if (!event.target.closest?.('button')) controller.finish();
+      };
+      activeTypewriter = controller;
+      historyElement.setAttribute('aria-live', 'off');
+      controller.row.classList.add('is-typewriting');
+      controller.row.addEventListener('click', controller.skipClick);
+      controller.timer = window.setInterval(() => {
+        controller.index += 1;
+        controller.content.textContent = characters.slice(0, controller.index).join('');
+        if (shouldStickToBottom()) historyElement.scrollTop = historyElement.scrollHeight;
+        if (controller.index >= characters.length) controller.finish();
+      }, 24);
+    }
+
+    function speakMessage(text, button) {
+      if (activeListenButton) activeListenButton.classList.remove('is-playing');
+      if (audioIndicatorTimer) window.clearInterval(audioIndicatorTimer);
+      activeListenButton = null;
+      speak(text);
+      if (!('speechSynthesis' in window)) return;
+
+      const speech = window.speechSynthesis;
+      const startedAt = Date.now();
+      activeListenButton = button;
+      button.classList.add('is-playing');
+      audioIndicatorTimer = window.setInterval(() => {
+        if (Date.now() - startedAt > 400 && !speech.speaking && !speech.pending) {
+          button.classList.remove('is-playing');
+          activeListenButton = null;
+          window.clearInterval(audioIndicatorTimer);
+          audioIndicatorTimer = null;
+        }
+      }, 120);
+    }
+
+    function updateFriendshipDisplay() {
+      const status = getFriendshipStatus(npc.friendship).split(' (')[0];
+      friendshipStatusElement.textContent = status;
+      friendshipPoints.textContent = `${npc.friendship}/100`;
+      friendshipProgress.setAttribute('aria-valuenow', npc.friendship.toString());
+      friendshipFill.style.width = `${Math.max(0, Math.min(100, npc.friendship))}%`;
+      friendshipElement.title = `${copy.friendship}: ${npc.friendship}/100`;
+    }
+
+    function showXpReward(amount) {
+      const reward = document.createElement('span');
+      reward.className = 'de-ai-xp-float';
+      reward.textContent = `+${amount} XP`;
+      friendshipElement.appendChild(reward);
+      friendshipElement.classList.add('is-increased');
+      window.setTimeout(() => {
+        reward.remove();
+        friendshipElement.classList.remove('is-increased');
+      }, 1450);
     }
 
     function updateComposer() {
@@ -975,9 +1181,25 @@
     }
 
     function closeConversation() {
+      if (!overlay.isConnected || overlay.classList.contains('is-closing')) return;
       if (requestController) requestController.abort();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      overlay.remove();
+      if (activeTypewriter) activeTypewriter.finish();
+      if (audioIndicatorTimer) window.clearInterval(audioIndicatorTimer);
+      audioIndicatorTimer = null;
+      if (activeListenButton) activeListenButton.classList.remove('is-playing');
+      activeListenButton = null;
+      overlay.classList.add('is-closing');
+      window.dispatchEvent(new CustomEvent('german-npc-chat-state', {
+        detail: { open: false, npcKey }
+      }));
+      window.removeEventListener('keydown', onGlobalKeyDown);
+      window.setTimeout(() => {
+        overlay.remove();
+        if (!document.querySelector('.de-dialogue-overlay')) {
+          document.body.classList.remove('npc-chat-open');
+        }
+      }, 220);
     }
     overlay.closeNpcConversation = closeConversation;
     overlay.querySelector('#de-npc-chat-close').addEventListener('click', closeConversation);
@@ -993,10 +1215,12 @@
 
       const userText = text ? text.trim() : '';
       if (text && !userText) return;
+      if (activeTypewriter) activeTypewriter.finish();
       const userMessage = userText
         ? appendMessage('user', userText, '', suggestedTranslation)
         : null;
       if (userText) {
+        playSFX('Click');
         messages.push({ role: 'user', content: userText });
         turns += 1;
         suggestionsElement.hidden = true;
@@ -1045,10 +1269,17 @@
           messages.push({ role: 'assistant', content: result.reply.de });
         }
         typingIndicator.remove();
-        appendMessage('assistant', result.reply.de, result.reply.translation);
+        const assistantMessage = appendMessage(
+          'assistant',
+          result.reply.de,
+          result.reply.translation,
+          '',
+          { typewriter: true }
+        );
+        typewriteMessage(assistantMessage, result.reply.de);
         statusElement.textContent = '';
         statusElement.classList.remove('is-error');
-        speak(result.reply.de);
+        speakMessage(result.reply.de, assistantMessage.listenButton);
         if (input.value.trim() === userText) {
           input.value = '';
           updateComposer();
@@ -1058,7 +1289,8 @@
           rewardGranted = true;
           npc.friendship = Math.min(100, npc.friendship + friendshipBonus);
           localStorage.setItem(`de_npc_${npcKey}_fr`, npc.friendship.toString());
-          friendshipElement.textContent = `🤝 ${getFriendshipStatus(npc.friendship)} (${npc.friendship}/100)`;
+          updateFriendshipDisplay();
+          showXpReward(40);
           playSFX('Correct');
           if (window.GermanEngine && window.GermanEngine.State) {
             window.GermanEngine.State.addXP(40, `Gespräch mit ${npcShortName}`);
@@ -1068,9 +1300,10 @@
         typingIndicator.remove();
         if (error.name !== 'AbortError') {
           if (userMessage) {
-            userMessage.remove();
+            userMessage.row.remove();
             messages.pop();
             turns -= 1;
+            lastMessageRole = messages.length ? messages[messages.length - 1].role : null;
           }
           statusElement.textContent = error.name === 'TypeError'
             ? copy.connectionError
@@ -1085,7 +1318,7 @@
           input.disabled = false;
           sendButton.disabled = false;
           overlay.querySelectorAll('.de-ai-suggestion').forEach((button) => {
-            button.disabled = false;
+            button.disabled = Boolean(activeTypewriter);
           });
         }
       }
@@ -1105,16 +1338,55 @@
       }
     });
 
+    translationToggle.addEventListener('click', () => {
+      const show = overlay.classList.contains('translations-hidden');
+      overlay.classList.toggle('translations-hidden', !show);
+      localStorage.setItem('lw_npc_translations', show ? 'true' : 'false');
+      const label = show ? copy.hideTranslations : copy.showTranslations;
+      translationToggle.setAttribute('aria-pressed', show.toString());
+      translationToggle.setAttribute('aria-label', label);
+      translationToggle.title = label;
+      translationToggle.lastElementChild.textContent = label;
+    });
+
     overlay.querySelectorAll('.de-ai-suggestion').forEach((button) => {
       button.addEventListener('click', () => {
         const index = Number(button.getAttribute('data-response-index'));
-        const response = npc.dialogue.responses[index];
+        const response = suggestedResponses[index];
         if (response) {
           sendMessage(response.de, language === 'ar' ? response.ar : '', response.friendshipBonus);
         }
       });
     });
 
+    function onGlobalKeyDown(event) {
+      if (!overlay.isConnected || overlay.classList.contains('is-closing')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeConversation();
+        return;
+      }
+
+      const isInteractiveTarget = event.target instanceof Element
+        && event.target.closest('input, textarea, select, button, [contenteditable="true"]');
+      if (event.code === 'Space' && activeTypewriter && !isInteractiveTarget) {
+        event.preventDefault();
+        activeTypewriter.finish();
+        return;
+      }
+
+      if (/^[1-3]$/.test(event.key) && !isInteractiveTarget && !isBusy) {
+        const button = overlay.querySelector(
+          `.de-ai-suggestion[data-response-index="${Number(event.key) - 1}"]`
+        );
+        if (button && !button.disabled) {
+          event.preventDefault();
+          button.click();
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onGlobalKeyDown);
     sendMessage('');
   }
 

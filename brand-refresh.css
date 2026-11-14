@@ -891,6 +891,271 @@ input:focus-visible {
   }
 }
 
+/* Compact grouped HUD, separated from the NPC conversation surface. */
+.de-hud-bar {
+  position: fixed !important;
+  top: 12px !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 7px !important;
+  border: 1px solid rgba(23, 59, 49, 0.14) !important;
+  border-radius: 17px !important;
+  background: rgba(255, 253, 248, 0.96) !important;
+  box-shadow: 0 10px 28px rgba(32, 54, 43, 0.14) !important;
+}
+
+.de-hud-stats,
+.de-hud-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.de-hud-stats {
+  flex-wrap: wrap;
+}
+
+.de-hud-actions {
+  padding-inline-start: 7px;
+  border-inline-start: 1px solid var(--lw-line);
+}
+
+.de-hud-lang {
+  gap: 5px;
+  padding-inline-end: 8px;
+  border-color: var(--lw-line);
+  color: var(--lw-ink);
+  font-size: 12px;
+}
+
+.de-hud-xp,
+.de-hud-level {
+  gap: 4px;
+  font-size: 11px;
+}
+
+.de-hud-level {
+  padding: 4px 8px;
+  background: #e8eee4;
+  color: var(--lw-green-deep);
+}
+
+.de-hud-btn {
+  min-height: 44px;
+  justify-content: center;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--lw-green) !important;
+  color: var(--lw-paper-bright) !important;
+  box-shadow: none !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.de-hud-btn:hover {
+  transform: translateY(-1px);
+  background: var(--lw-green-deep) !important;
+}
+
+.de-hud-btn.quest-btn {
+  background: #a6502a !important;
+}
+
+.de-hud-btn.quest-btn:hover {
+  background: #874321 !important;
+}
+
+.de-review-btn {
+  gap: 6px;
+}
+
+.de-language-control {
+  gap: 5px;
+  font-size: 10px;
+}
+
+.de-language-control select {
+  min-height: 44px;
+  padding-inline: 8px 24px;
+  border-radius: 11px;
+  font-size: 11px;
+}
+
+.de-life-hud {
+  position: fixed !important;
+  top: 72px !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  max-width: calc(100vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px !important;
+  padding: 4px 7px !important;
+  border-radius: 14px !important;
+  background: rgba(255, 253, 248, 0.92) !important;
+}
+
+.de-life-stat {
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 9px;
+  box-shadow: none !important;
+  font-size: 10px;
+}
+
+.de-life-btn {
+  min-height: 44px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+body.npc-chat-open .de-life-hud,
+body.npc-chat-open .de-world-npc-beacon {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.de-world-npc-beacon {
+  right: 18px;
+  bottom: 20px;
+  min-height: 44px;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 253, 248, 0.32);
+  border-radius: 14px;
+  background: rgba(18, 56, 47, 0.92);
+  box-shadow: 0 8px 22px rgba(10, 28, 23, 0.2);
+  font-family: Inter, 'Nunito', 'Cairo', system-ui, sans-serif;
+  font-size: 11px;
+}
+
+.de-world-npc-avatar {
+  font-size: 17px;
+}
+
+.lw-world-portal-prompt.is-npc-prompt {
+  bottom: auto;
+  left: 0;
+  width: auto;
+  max-width: min(300px, calc(100vw - 24px));
+  min-height: 44px;
+  gap: 8px;
+  padding: 5px 7px 5px 11px;
+  transform: translate(-50%, calc(-100% - 24px));
+  border-color: rgba(255, 253, 248, 0.5);
+  border-radius: 999px;
+  background: rgba(18, 56, 47, 0.94);
+  box-shadow: 0 9px 24px rgba(10, 28, 23, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.lw-world-portal-prompt.is-npc-prompt .lw-world-portal-text {
+  max-width: 190px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.lw-world-portal-prompt.is-npc-prompt .lw-world-portal-button {
+  min-width: 84px;
+  min-height: 44px;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .de-hud-bar {
+    top: 8px !important;
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    gap: 4px !important;
+    padding: 5px !important;
+    border-radius: 14px !important;
+  }
+
+  .de-hud-stats,
+  .de-hud-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .de-hud-actions {
+    padding: 4px 0 0;
+    border: 0;
+    border-top: 1px solid var(--lw-line);
+  }
+
+  .de-hud-btn {
+    min-height: 44px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .de-life-hud {
+    top: auto !important;
+    right: auto !important;
+    bottom: 10px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    flex-wrap: nowrap;
+  }
+
+  .de-life-btn {
+    min-height: 44px;
+  }
+
+  body.npc-chat-open .de-life-hud {
+    display: none !important;
+  }
+
+  .de-world-npc-beacon {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+
+@media (max-width: 430px) {
+  .de-hud-stats {
+    justify-content: space-between;
+  }
+
+  .de-hud-lang {
+    padding-inline-end: 4px;
+    font-size: 10px;
+  }
+
+  .de-hud-xp,
+  .de-hud-level {
+    font-size: 10px;
+  }
+
+  .de-language-control > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -553,13 +553,21 @@ function WorldExplorer({
   const [isLoading, setIsLoading] = React.useState(false);
   const [nearbyPortal, setNearbyPortal] = React.useState(null);
   const [nearbyNpc, setNearbyNpc] = React.useState(null);
+  const [npcSpeech, setNpcSpeech] = React.useState(null);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
   const currentPortal = React.useRef(null);
   const currentNpc = React.useRef(null);
   const npcPositions = React.useRef(new Map());
+  const speechBubbleElement = React.useRef(null);
+  const interactionPromptElement = React.useRef(null);
+  const interactionPromptNpcId = React.useRef(null);
+  const speechSequence = React.useRef(0);
+  const chatOpen = React.useRef(false);
+  const screenPosition = React.useMemo(() => new Vector3(), []);
   const loadingRef = React.useRef(false);
   const readyLevel = React.useRef(null);
+  const { camera, gl } = useThree();
   const { animations: movementAnimations } = useGLTF('/Grounds/NPC/Movement.glb', true);
   const { animations: idleAnimations } = useGLTF('/Grounds/NPC/General.glb', true);
   const activeNpcs = WORLD_NPCS[level] || [];
@@ -578,6 +586,94 @@ function WorldExplorer({
   React.useEffect(() => {
     if (currentLevel !== null && currentLevel !== level) setLevel(currentLevel);
   }, [currentLevel]);
+
+  React.useEffect(() => {
+    const onNpcSpeech = (event) => {
+      const { npcKey, text } = event.detail || {};
+      const target = activeNpcs.find((npc) => npc.npcKey === npcKey);
+      if (!target || typeof text !== 'string' || !text.trim()) return;
+      speechSequence.current += 1;
+      setNpcSpeech({
+        npcId: target.id,
+        text: text.trim().slice(0, 240),
+        sequence: speechSequence.current
+      });
+    };
+    const onChatState = (event) => {
+      chatOpen.current = Boolean(event.detail && event.detail.open);
+      if (interactionPromptElement.current) {
+        interactionPromptElement.current.style.display = chatOpen.current ? 'none' : '';
+      }
+    };
+    window.addEventListener('german-npc-speech', onNpcSpeech);
+    window.addEventListener('german-npc-chat-state', onChatState);
+    return () => {
+      window.removeEventListener('german-npc-speech', onNpcSpeech);
+      window.removeEventListener('german-npc-chat-state', onChatState);
+    };
+  }, [activeNpcs]);
+
+  React.useEffect(() => {
+    if (!npcSpeech) return undefined;
+    const bubble = document.createElement('div');
+    bubble.className = 'lw-npc-speech-bubble';
+    bubble.setAttribute('role', 'status');
+    bubble.setAttribute('aria-live', 'polite');
+    const text = document.createElement('bdi');
+    text.lang = 'de';
+    text.dir = 'ltr';
+    text.textContent = npcSpeech.text;
+    bubble.appendChild(text);
+    document.body.appendChild(bubble);
+    speechBubbleElement.current = bubble;
+
+    const timeout = window.setTimeout(() => {
+      setNpcSpeech((current) => current && current.sequence === npcSpeech.sequence ? null : current);
+    }, 6500);
+    return () => {
+      window.clearTimeout(timeout);
+      bubble.remove();
+      if (speechBubbleElement.current === bubble) speechBubbleElement.current = null;
+    };
+  }, [npcSpeech]);
+
+  React.useEffect(() => {
+    setNpcSpeech(null);
+  }, [level]);
+
+  useFrame(() => {
+    const canvas = gl.domElement;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const positionElement = (element, npcId, height) => {
+      if (!element || !npcId) return;
+      const position = npcPositions.current.get(npcId);
+      if (!position) {
+        element.style.display = 'none';
+        return;
+      }
+      screenPosition.set(position.x, height, position.z).project(camera);
+      const visible = screenPosition.z >= -1 && screenPosition.z <= 1
+        && screenPosition.x >= -1.15 && screenPosition.x <= 1.15
+        && screenPosition.y >= -1.15 && screenPosition.y <= 1.15;
+      if (!visible) {
+        element.style.display = 'none';
+        return;
+      }
+      element.style.display = 'block';
+      element.style.left = `${rect.left + (screenPosition.x + 1) * rect.width / 2}px`;
+      element.style.top = `${rect.top + (1 - screenPosition.y) * rect.height / 2}px`;
+    };
+
+    const prompt = interactionPromptElement.current;
+    if (prompt && interactionPromptNpcId.current) {
+      if (chatOpen.current) prompt.style.display = 'none';
+      else positionElement(prompt, interactionPromptNpcId.current, 1.35);
+    }
+    if (npcSpeech && speechBubbleElement.current) {
+      positionElement(speechBubbleElement.current, npcSpeech.npcId, 2.25);
+    }
+  });
 
   const changeLevel = React.useCallback((nextLevel, markComplete = true) => {
     if (loadingRef.current || nextLevel === level) return;
@@ -687,7 +783,7 @@ function WorldExplorer({
 
   React.useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.repeat || event.key.toLowerCase() !== 'f') return;
+      if (chatOpen.current || event.repeat || event.key.toLowerCase() !== 'f') return;
       if (!nearbyNpc && !nearbyPortal) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -721,7 +817,7 @@ function WorldExplorer({
 
     const prompt = document.createElement('div');
     prompt.id = 'lw-world-interaction-prompt';
-    prompt.className = 'lw-world-portal-prompt';
+    prompt.className = `lw-world-portal-prompt${nearbyNpc ? ' is-npc-prompt' : ''}`;
     prompt.setAttribute('role', 'status');
     prompt.setAttribute('aria-live', 'polite');
 
@@ -737,6 +833,8 @@ function WorldExplorer({
     const key = document.createElement('kbd');
     key.textContent = 'F';
     button.append(buttonLabel, key);
+    text.dir = language === 'ar' ? 'rtl' : 'ltr';
+    buttonLabel.dir = 'auto';
 
     const stopPropagation = (event) => event.stopPropagation();
     const activate = () => {
@@ -748,11 +846,20 @@ function WorldExplorer({
     button.addEventListener('click', activate);
     prompt.append(text, button);
     document.body.appendChild(prompt);
+    interactionPromptElement.current = prompt;
+    interactionPromptNpcId.current = nearbyNpc ? nearbyNpc.id : null;
+    const beacon = nearbyNpc && document.getElementById('de-npc-world-beacon');
+    if (beacon) beacon.style.display = 'none';
 
     return () => {
       prompt.removeEventListener('pointerdown', stopPropagation);
       prompt.removeEventListener('mousedown', stopPropagation);
       button.removeEventListener('click', activate);
+      if (interactionPromptElement.current === prompt) interactionPromptElement.current = null;
+      if (interactionPromptNpcId.current === (nearbyNpc && nearbyNpc.id)) {
+        interactionPromptNpcId.current = null;
+      }
+      if (beacon) beacon.style.display = '';
       prompt.remove();
     };
   }, [
