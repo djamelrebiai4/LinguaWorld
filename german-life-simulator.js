@@ -8,6 +8,13 @@
 (function () {
   'use strict';
 
+  function displayTimeOfDay(value) {
+    return String(value)
+      .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u26FF\uFE0F]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   // 1. Life State & Persistence
   const LifeState = {
     money: parseInt(localStorage.getItem('de_life_money') || '350', 10),
@@ -67,7 +74,7 @@
       const energyEl = document.getElementById('de-life-energy-val');
       if (energyEl) energyEl.textContent = `${this.energy}%`;
       const timeEl = document.getElementById('de-life-time-val');
-      if (timeEl) timeEl.textContent = this.timeOfDay;
+      if (timeEl) timeEl.textContent = displayTimeOfDay(this.timeOfDay);
     }
   };
 
@@ -86,14 +93,16 @@
     if (old) old.remove();
     const toast = document.createElement('div');
     toast.className = 'de-toast';
-    toast.innerHTML = `<span>🇩🇪</span><span>${message}</span>`;
+    toast.innerHTML = `<span class="de-toast-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.4 9l6 .5-4.5 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9-4.5-3.9 6-.5L12 3.5Z"/></svg></span><span>${message}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
-      toast.style.transform = 'translateY(20px)';
+      toast.style.transform = document.body.classList.contains('de-game-world')
+        ? 'translate(-50%, 20px)'
+        : 'translateY(20px)';
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
-    }, 3200);
+    }, 2500);
   }
 
   // 4. Speech Helper
@@ -539,26 +548,186 @@
   function renderLifeHUD() {
     if (document.getElementById('de-life-top-hud')) return;
 
+    const uiLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
+      ? window.GermanEngine.getSupportLanguage()
+      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+    const isGameWorld = Boolean(
+      window.location.pathname.toLowerCase().match(/\/levels\/(city|house|classroom|restaurant|supermarket)/)
+    );
+    if (!isGameWorld) {
+      const hud = document.createElement('div');
+      hud.id = 'de-life-top-hud';
+      hud.className = 'de-life-hud';
+      hud.innerHTML = `
+        <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
+          <span>💶</span> <span id="de-life-money-val">${LifeState.money} €</span>
+        </div>
+        <div class="de-life-stat energy" title="مستوى الطاقة">
+          <span>⚡</span> <span id="de-life-energy-val">${LifeState.energy}%</span>
+        </div>
+        <div class="de-life-stat" title="وقت اليوم">
+          <span id="de-life-time-val">${LifeState.timeOfDay}</span>
+        </div>
+        <button class="de-life-btn highlight" id="de-open-life-btn" title="افتح قائمة الحياة الاجتماعية والوظائف">
+          <span>🏙️</span> <span>Meine Welt (عالمي)</span>
+        </button>
+      `;
+      document.body.appendChild(hud);
+      document.getElementById('de-open-life-btn').addEventListener('click', () => {
+        openLifeModal('friends');
+      });
+      return;
+    }
+
     const hud = document.createElement('div');
     hud.id = 'de-life-top-hud';
     hud.className = 'de-life-hud';
     hud.innerHTML = `
-      <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
-        <span>💶</span> <span id="de-life-money-val">${LifeState.money} €</span>
+      <div class="de-hud-top-right" id="de-hud-top-right">
+        <div class="de-life-stats" id="de-life-stats">
+          <div class="de-life-stat money" title="${uiLanguage === 'en' ? 'Money' : 'المال'}" aria-label="${uiLanguage === 'en' ? 'Money' : 'المال'}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m4-14H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H7"/></svg>
+            <span id="de-life-money-val">${LifeState.money} €</span>
+          </div>
+          <div class="de-life-stat energy" title="${uiLanguage === 'en' ? 'Energy' : 'الطاقة'}" aria-label="${uiLanguage === 'en' ? 'Energy' : 'الطاقة'}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></svg>
+            <span id="de-life-energy-val">${LifeState.energy}%</span>
+          </div>
+          <div class="de-life-stat time" title="${uiLanguage === 'en' ? 'Time of day' : 'وقت اليوم'}" aria-label="${uiLanguage === 'en' ? 'Time of day' : 'وقت اليوم'}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+            <span id="de-life-time-val">${displayTimeOfDay(LifeState.timeOfDay)}</span>
+          </div>
+        </div>
+        ${isGameWorld ? `
+          <div class="de-hud-utility-controls" role="group" aria-label="${uiLanguage === 'en' ? 'Game controls' : 'أدوات اللعبة'}">
+            <button class="de-hud-icon-button" id="de-hud-hint-button" type="button"
+              title="${uiLanguage === 'en' ? 'Hint (H)' : 'تلميح (H)'}" aria-label="${uiLanguage === 'en' ? 'Hint (H)' : 'تلميح (H)'}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4m-2-19a7 7 0 0 0-4 12.75c.6.4 1 1 1 1.75h6c0-.75.4-1.35 1-1.75A7 7 0 0 0 12 2Z"/></svg>
+            </button>
+            <button class="de-hud-icon-button" id="de-hud-music-button" type="button"
+              title="${uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت'}" aria-label="${uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت'}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>
+            </button>
+            <button class="de-hud-icon-button" id="de-hud-pause-button" type="button"
+              title="${uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)'}" aria-label="${uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)'}" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>
+            </button>
+          </div>
+        ` : ''}
+        <div class="de-hud-settings">
+          <button class="de-hud-icon-button" id="de-hud-settings-button" type="button"
+            title="${uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}" aria-label="${uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}" aria-expanded="false"
+            aria-controls="de-hud-settings-popover">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.1 1.9-1.7 2.9-2.2-.5a7.7 7.7 0 0 1-1.5.9l-.6 2.2h-3.3l-.6-2.2a7.7 7.7 0 0 1-1.5-.9l-2.2.5-1.7-2.9 1.1-1.9A8 8 0 0 1 6.3 13l-2.2-.7v-3.3l2.2-.6a8 8 0 0 1 .7-1.6L5.9 5l1.7-2.9 2.2.5a7.7 7.7 0 0 1 1.5-.9L12 .5h3.3l.6 2.2a7.7 7.7 0 0 1 1.5.9l2.2-.5L21.3 6l-1.1 1.9a8 8 0 0 1 .7 1.6l2.2.6v3.3l-2.2.7a8 8 0 0 1-.7.9Z"/></svg>
+          </button>
+          <div class="de-hud-settings-popover" id="de-hud-settings-popover" hidden>
+            <button class="de-life-btn highlight" id="de-open-life-btn" type="button"
+              title="Meine Welt">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z"/></svg>
+              <span>Meine Welt</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="de-life-stat energy" title="مستوى الطاقة">
-        <span>⚡</span> <span id="de-life-energy-val">${LifeState.energy}%</span>
-      </div>
-      <div class="de-life-stat" title="وقت اليوم">
-        <span id="de-life-time-val">${LifeState.timeOfDay}</span>
-      </div>
-      <button class="de-life-btn highlight" id="de-open-life-btn" title="افتح قائمة الحياة الاجتماعية والوظائف">
-        <span>🏙️</span> <span>Meine Welt (عالمي)</span>
-      </button>
     `;
     document.body.appendChild(hud);
 
+    const settingsPopover = hud.querySelector('#de-hud-settings-popover');
+    const languageControl = document.querySelector('.de-language-control');
+    if (languageControl) settingsPopover.prepend(languageControl);
+
+    const settingsButton = hud.querySelector('#de-hud-settings-button');
+    const musicButton = hud.querySelector('#de-hud-music-button');
+    const pauseButton = hud.querySelector('#de-hud-pause-button');
+    const setToggleButton = (button, isActive, label, icon) => {
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-pressed', String(isActive));
+      button.innerHTML = icon;
+    };
+    const musicControl = document.querySelector('.mute-button');
+    if (musicControl && musicButton) {
+      const muted = musicControl.title === 'Unmute Sound';
+      setToggleButton(
+        musicButton,
+        muted,
+        muted
+          ? uiLanguage === 'en' ? 'Unmute sound' : 'تشغيل الصوت'
+          : uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت',
+        muted
+          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>'
+          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>'
+      );
+    }
+    const pauseControl = document.querySelector('.pause-btn');
+    if (pauseControl && pauseButton) {
+      const paused = pauseControl.title === 'Resume';
+      setToggleButton(
+        pauseButton,
+        paused,
+        paused
+          ? uiLanguage === 'en' ? 'Resume (P)' : 'استئناف (P)'
+          : uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)',
+        paused
+          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>'
+          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
+      );
+    }
+    const closeSettings = () => {
+      hud.querySelector('#de-hud-top-right').classList.remove('is-settings-open');
+      document.body.classList.remove('de-hud-settings-open');
+      settingsPopover.hidden = true;
+      settingsButton.setAttribute('aria-expanded', 'false');
+    };
+    settingsButton.addEventListener('click', () => {
+      const isOpen = !settingsPopover.hidden;
+      settingsPopover.hidden = isOpen;
+      settingsButton.setAttribute('aria-expanded', String(!isOpen));
+      hud.querySelector('#de-hud-top-right').classList.toggle('is-settings-open', !isOpen);
+      document.body.classList.toggle('de-hud-settings-open', !isOpen);
+    });
+
+    hud.querySelector('#de-hud-hint-button')?.addEventListener('click', () => {
+      const hint = document.querySelector('.tutorial-toggle-btn');
+      if (hint) hint.click();
+      else console.error('The in-game help control is unavailable.');
+    });
+    musicButton?.addEventListener('click', (event) => {
+      const music = document.querySelector('.mute-button');
+      if (!music) {
+        console.error('The in-game music control is unavailable.');
+        return;
+      }
+      music.click();
+      const muted = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      setToggleButton(event.currentTarget, muted, muted
+        ? uiLanguage === 'en' ? 'Unmute sound' : 'تشغيل الصوت'
+        : uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت',
+      muted
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>');
+    });
+    pauseButton?.addEventListener('click', (event) => {
+      const pause = document.querySelector('.pause-btn');
+      if (!pause) {
+        console.error('The in-game pause control is unavailable.');
+        return;
+      }
+      pause.click();
+      const paused = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      setToggleButton(event.currentTarget, paused, paused
+        ? uiLanguage === 'en' ? 'Resume (P)' : 'استئناف (P)'
+        : uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)',
+      paused
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>');
+    });
+    document.addEventListener('click', (event) => {
+      if (!hud.querySelector('#de-hud-top-right').contains(event.target)) closeSettings();
+    });
+
     document.getElementById('de-open-life-btn').addEventListener('click', () => {
+      closeSettings();
       openLifeModal('friends');
     });
   }

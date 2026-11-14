@@ -125,13 +125,24 @@ function createCityMap(language) {
   header.className = 'lw-city-map-header';
   const heading = document.createElement('strong');
   heading.textContent = language === 'ar' ? 'خريطة المدينة' : 'Town map';
+  const headerActions = document.createElement('div');
+  headerActions.className = 'lw-city-map-header-actions';
+  const legendToggle = document.createElement('button');
+  legendToggle.type = 'button';
+  legendToggle.className = 'lw-city-map-icon-button lw-city-map-legend-toggle';
+  legendToggle.title = language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend';
+  legendToggle.setAttribute('aria-label', legendToggle.title);
+  legendToggle.setAttribute('aria-expanded', 'false');
+  legendToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>';
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = 'lw-city-map-toggle';
-  toggle.textContent = '−';
+  toggle.className = 'lw-city-map-icon-button lw-city-map-toggle';
   toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
   toggle.setAttribute('aria-expanded', 'true');
-  header.append(heading, toggle);
+  toggle.title = toggle.getAttribute('aria-label');
+  toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  headerActions.append(legendToggle, toggle);
+  header.append(heading, headerActions);
 
   const body = document.createElement('div');
   body.className = 'lw-city-map-body';
@@ -230,6 +241,7 @@ function createCityMap(language) {
 
   const legend = document.createElement('div');
   legend.className = 'lw-city-map-legend';
+  legend.hidden = true;
   const legendItems = [
     { label: language === 'ar' ? 'أنت' : 'You', color: '#ffb36b', player: true },
     ...CITY_PORTALS.map((portal) => ({
@@ -250,20 +262,58 @@ function createCityMap(language) {
     legend.appendChild(item);
   });
 
-  body.append(map, compass, legend);
+  const expandToggle = document.createElement('button');
+  expandToggle.type = 'button';
+  expandToggle.className = 'lw-city-map-icon-button lw-city-map-expand';
+  expandToggle.title = language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map';
+  expandToggle.setAttribute('aria-label', expandToggle.title);
+  expandToggle.setAttribute('aria-expanded', 'false');
+  expandToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
+  body.append(map, compass, legend, expandToggle);
   panel.append(header, body);
   toggle.addEventListener('click', (event) => {
     event.stopPropagation();
     const collapsed = panel.classList.toggle('is-collapsed');
+    if (collapsed) panel.classList.remove('is-expanded');
     body.hidden = collapsed;
-    toggle.textContent = collapsed ? '+' : '−';
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute(
-      'aria-label',
-      collapsed
-        ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
-        : language === 'ar' ? 'طي الخريطة' : 'Collapse map'
-    );
+    const label = collapsed
+      ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
+      : language === 'ar' ? 'طي الخريطة' : 'Collapse map';
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
+    toggle.innerHTML = collapsed
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  });
+  legendToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isOpen = panel.classList.toggle('is-legend-open');
+    legend.hidden = !isOpen;
+    legendToggle.setAttribute('aria-expanded', String(isOpen));
+    legendToggle.title = isOpen
+      ? language === 'ar' ? 'إخفاء مفتاح الخريطة' : 'Hide map legend'
+      : language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend';
+    legendToggle.setAttribute('aria-label', legendToggle.title);
+  });
+  expandToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isExpanded = !panel.classList.contains('is-expanded');
+    panel.classList.toggle('is-expanded', isExpanded);
+    panel.classList.remove('is-collapsed');
+    body.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
+    toggle.title = toggle.getAttribute('aria-label');
+    toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+    expandToggle.setAttribute('aria-expanded', String(isExpanded));
+    expandToggle.title = isExpanded
+      ? language === 'ar' ? 'تصغير الخريطة' : 'Shrink map'
+      : language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map';
+    expandToggle.setAttribute('aria-label', expandToggle.title);
+    expandToggle.innerHTML = isExpanded
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v5H3m13-5v5h5M3 16h5v5m8-5h5v5h-5"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
   });
   ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach((eventName) => {
     panel.addEventListener(eventName, (event) => event.stopPropagation());
@@ -1260,6 +1310,22 @@ function WorldExplorer({
       }
     };
   }, [language, level]);
+
+  React.useEffect(() => {
+    if (level !== 1) return undefined;
+    const onMapShortcut = (event) => {
+      if (event.repeat || event.key.toLowerCase() !== 'm' || chatOpen.current) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target && target.closest('input, textarea, select, button, [contenteditable="true"]')) {
+        return;
+      }
+      if (!cityMapElement.current) return;
+      event.preventDefault();
+      cityMapElement.current.hidden = !cityMapElement.current.hidden;
+    };
+    window.addEventListener('keydown', onMapShortcut);
+    return () => window.removeEventListener('keydown', onMapShortcut);
+  }, [level]);
 
   React.useEffect(() => {
     const location = {};
