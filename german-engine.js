@@ -72,6 +72,8 @@
       example: 'Example',
       translationExample: 'Translation',
       close: 'Close',
+      reviewVocabulary: 'Review words',
+      chooseWordToReview: 'Choose a word to review its article and pronunciation.',
       plural: 'plural / expression',
       tip: (article) => `Learn each noun with its article (${article}) and color.`,
       listen: 'Listen to pronunciation',
@@ -88,6 +90,7 @@
       correct: (word) => `Correct answer: ${word}`,
       challenge: 'Article challenge',
       chooseArticle: 'Choose the correct article: Der, Die, or Das',
+      loading: 'Loading...',
       time: 'Time',
       streak: 'Streak',
       score: 'Score',
@@ -108,6 +111,8 @@
       example: 'مثال',
       translationExample: 'الترجمة',
       close: 'إغلاق',
+      reviewVocabulary: 'راجع المفردات',
+      chooseWordToReview: 'اختر كلمة لمراجعة أداة التعريف والنطق.',
       plural: 'جمع / تعبير',
       tip: (article) => `احفظ كل اسم مع أداة التعريف (${article}) ولونها.`,
       listen: 'استمع إلى النطق',
@@ -124,6 +129,7 @@
       correct: (word) => `إجابة صحيحة (${word})`,
       challenge: 'تحدي أدوات التعريف',
       chooseArticle: 'اختر أداة التعريف الصحيحة: Der أو Die أو Das',
+      loading: 'جارٍ التحميل...',
       time: 'الوقت',
       streak: 'المتتالية',
       score: 'النقاط',
@@ -234,16 +240,32 @@
     currentWorld: null,
     activeQuest: null,
     completedQuests: JSON.parse(localStorage.getItem('de_completed_quests') || '[]'),
-    
+
     addXP(points, reason) {
+      const prevXP = this.xp;
       this.xp += points;
       localStorage.setItem('de_xp', this.xp.toString());
       this.calcLevel();
       this.updateHUD();
       showToast(`+${points} XP: ${reason}`);
       playSFX('Correct');
+
+      // XP Milestone Achievement Popups
+      const milestones = [
+        { xp: 100,  name: 'Sprachanfänger',  badge: '🌟' },
+        { xp: 250,  name: 'Sprachentdecker', badge: '🔥' },
+        { xp: 500,  name: 'Sprachtalent',    badge: '🏅' },
+        { xp: 1000, name: 'Sprachprofi',     badge: '🏆' },
+        { xp: 2000, name: 'Deutsch-Meister', badge: '🎖️' }
+      ];
+      for (const m of milestones) {
+        if (prevXP < m.xp && this.xp >= m.xp) {
+          setTimeout(() => showAchievementModal(m), 600);
+          break;
+        }
+      }
     },
-    
+
     calcLevel() {
       if (this.xp >= 1000) this.level = 4;
       else if (this.xp >= 500) this.level = 3;
@@ -278,12 +300,12 @@
     utterance.lang = 'de-DE';
     utterance.rate = 0.88; // Slightly slower for language learners
     utterance.pitch = 1.0;
-    
+
     // Choose German voice if available
     const voices = window.speechSynthesis.getVoices();
     const deVoice = voices.find(v => v.lang.startsWith('de'));
     if (deVoice) utterance.voice = deVoice;
-    
+
     window.speechSynthesis.speak(utterance);
   }
 
@@ -307,7 +329,7 @@
   function showToast(message) {
     const oldToast = document.querySelector('.de-toast');
     if (oldToast) oldToast.remove();
-    
+
     const toast = document.createElement('div');
     toast.className = 'de-toast';
     toast.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
@@ -318,7 +340,7 @@
     content.textContent = message;
     toast.append(icon, content);
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(20px)';
@@ -341,7 +363,7 @@
   // 9. Render Top HUD Bar
   function renderHUD() {
     if (document.getElementById('de-top-hud')) return;
-    
+
     const hud = document.createElement('div');
     hud.id = 'de-top-hud';
     hud.className = 'de-hud-bar';
@@ -362,13 +384,22 @@
           <option value="en">English</option>
         </select>
       </label>
+      <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
       <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}">
         <span>🎮</span> <span>Der Die Das</span>
+      </button>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="${copy('reviewVocabulary')}">
+        📚 <span>${copy('reviewVocabulary')}</span>
       </button>
     `;
     document.body.appendChild(hud);
     hud.querySelector('#de-support-language').value = getSupportLanguage();
 
+    document.getElementById('de-launch-dialogue-btn').addEventListener('click', () => {
+      const w = detectWorld() || 'Supermarket';
+      openDialogue(w);
+    });
+    document.getElementById('de-review-vocab-btn').addEventListener('click', openVocabularyReview);
     document.getElementById('de-launch-game-btn').addEventListener('click', () => {
       openDerDieDasGame();
     });
@@ -500,7 +531,7 @@
         task.completed = true;
         State.addXP(30, copy('found', task.de));
         updateQuestDisplay();
-        
+
         // Check if all completed
         const allDone = State.activeQuest.tasks.every(t => t.completed);
         if (allDone && !State.completedQuests.includes(State.activeQuest.id)) {
@@ -545,6 +576,51 @@
     `).join('');
   }
 
+  function openVocabularyReview() {
+    const previous = document.querySelector('.de-vocab-review-overlay');
+    if (previous) previous.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'de-game-overlay de-vocab-review-overlay';
+    overlay.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
+    overlay.lang = getSupportLanguage();
+    overlay.innerHTML = `
+      <section class="de-game-container de-vocab-review-container" role="dialog" aria-modal="true" aria-labelledby="de-vocab-review-title">
+        <button class="de-modal-close" id="de-vocab-review-close" aria-label="${copy('close')}">&times;</button>
+        <h2 id="de-vocab-review-title">${copy('reviewVocabulary')}</h2>
+        <p id="de-vocab-review-instruction">${copy('chooseWordToReview')}</p>
+        <div class="de-vocab-review-list" id="de-vocab-review-list"></div>
+      </section>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#de-vocab-review-close').addEventListener('click', () => overlay.remove());
+    renderVocabularyReviewList(overlay);
+  }
+
+  function renderVocabularyReviewList(overlay) {
+    const list = overlay.querySelector('#de-vocab-review-list');
+    if (!list) return;
+    list.replaceChildren();
+
+    Object.values(GERMAN_VOCAB)
+      .sort((first, second) => first.de.localeCompare(second.de, 'de'))
+      .forEach((item) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'de-vocab-review-item';
+        const german = document.createElement('span');
+        german.textContent = item.de;
+        const translation = document.createElement('span');
+        translation.textContent = getItemTranslation(item);
+        button.append(german, translation);
+        button.addEventListener('click', () => {
+          overlay.remove();
+          openEnhancedWordModal(item);
+        });
+        list.append(button);
+      });
+  }
+
   function setSupportLanguage(language) {
     const selectedLanguage = language === 'en' ? 'en' : 'ar';
     localStorage.setItem(SUPPORT_LANGUAGE_KEY, selectedLanguage);
@@ -555,10 +631,24 @@
     if (label) label.textContent = copy('supportLanguage');
     const gameButton = document.getElementById('de-launch-game-btn');
     if (gameButton) gameButton.title = copy('challenge');
+    const reviewButton = document.getElementById('de-review-vocab-btn');
+    if (reviewButton) {
+      reviewButton.title = copy('reviewVocabulary');
+      reviewButton.querySelector('span').textContent = copy('reviewVocabulary');
+    }
 
     State.updateHUD();
     enforceGermanOnlyHome();
     updateQuestDisplay();
+    const reviewOverlay = document.querySelector('.de-vocab-review-overlay');
+    if (reviewOverlay) {
+      reviewOverlay.dir = selectedLanguage === 'ar' ? 'rtl' : 'ltr';
+      reviewOverlay.lang = selectedLanguage;
+      document.getElementById('de-vocab-review-title').textContent = copy('reviewVocabulary');
+      document.getElementById('de-vocab-review-instruction').textContent = copy('chooseWordToReview');
+      document.getElementById('de-vocab-review-close').setAttribute('aria-label', copy('close'));
+      renderVocabularyReviewList(reviewOverlay);
+    }
     updateOpenGameLanguage();
     if (State.currentItem && document.querySelector('.de-learning-modal')) {
       openEnhancedWordModal(State.currentItem, false);
@@ -605,10 +695,10 @@
     if (oldModal) oldModal.remove();
 
     const language = getSupportLanguage();
-    const genderClass = item.gender === 'maskulin' ? 'de-gender-maskulin' 
-                      : item.gender === 'feminin' ? 'de-gender-feminin' 
+    const genderClass = item.gender === 'maskulin' ? 'de-gender-maskulin'
+                      : item.gender === 'feminin' ? 'de-gender-feminin'
                       : item.gender === 'neutrum' ? 'de-gender-neutrum' : 'de-gender-other';
-    
+
     const genderLabel = item.gender === 'maskulin' ? `🔵 DER (${copy('masculine')})`
                       : item.gender === 'feminin' ? `🔴 DIE (${copy('feminine')})`
                       : item.gender === 'neutrum' ? `🟢 DAS (${copy('neuter')})` : `🟡 ${copy('plural')}`;
@@ -625,7 +715,7 @@
       </div>
       <div class="de-word-title">${item.de}</div>
       <div class="de-word-ar">${getItemTranslation(item)}</div>
-      
+
       <div class="de-example-box">
         <div style="font-size:11px; text-transform:uppercase; color:#2563eb; font-weight:800; margin-bottom:4px;">${copy('example')} (Beispielsatz):</div>
         <div class="de-example-de">${item.example_de}</div>
@@ -693,7 +783,7 @@
       btnEl.classList.remove('listening');
       const spoken = event.results[0][0].transcript.toLowerCase().trim();
       const target = targetText.toLowerCase().replace(/^(der|die|das)\s+/i, '').trim();
-      
+
       if (spoken.includes(target) || target.includes(spoken)) {
         setButtonMessage(btnEl, '🎉', `${copy('excellent')} (+50 XP)`);
         btnEl.style.background = '#10b981';
@@ -753,7 +843,7 @@
       State.currentGameItem = currentItem;
       // Strip article from German display so user has to guess it
       const nounOnly = currentItem.de.replace(/^(der|die|das)\s+/i, '');
-      
+
       const nounEl = document.getElementById('de-game-noun-display');
       const arEl = document.getElementById('de-game-ar-display');
       if (nounEl && arEl) {
@@ -772,7 +862,7 @@
         <button class="de-modal-close" style="position:absolute; top:20px; right:20px;" id="de-game-close" aria-label="${copy('close')}">&times;</button>
         <div id="de-game-title" style="font-size:22px; font-weight:900; color:#1e293b; margin-bottom:4px;">🎮 ${copy('challenge')}</div>
         <div id="de-game-instruction" style="font-size:13px; color:#64748b; font-weight:700; margin-bottom:18px;">${copy('chooseArticle')}</div>
-        
+
         <div class="de-game-score-row">
           <div><span id="de-game-time-label">⏳ ${copy('time')}:</span> <span id="de-game-timer">60</span>s</div>
           <div><span id="de-game-streak-label">🔥 ${copy('streak')}:</span> <span id="de-game-streak">0</span>x</div>
@@ -780,7 +870,7 @@
         </div>
 
         <div class="de-game-word-card">
-          <div class="de-game-noun" id="de-game-noun-display">Laden...</div>
+          <div class="de-game-noun" id="de-game-noun-display">${copy('loading')}</div>
           <div class="de-game-ar-hint" id="de-game-ar-display">...</div>
         </div>
 
@@ -827,7 +917,7 @@
       timeLeft--;
       const timerEl = document.getElementById('de-game-timer');
       if (timerEl) timerEl.textContent = timeLeft;
-      
+
       if (timeLeft <= 0) {
         playSFX('LessonComplete');
         alert(copy('timeUp', score));
@@ -903,11 +993,402 @@
     });
   }
 
+
+  // ============================================================
+  // 17. Interactive German Dialogue Simulator (Dialog-Simulator)
+  // ============================================================
+  const DIALOGUES = {
+    Supermarket: {
+      id: 'supermarket_dialogue',
+      title: 'An der Kasse (عند الكاشير في السوبرماركت)',
+      world: 'Supermarket',
+      speaker: 'Kassiererin (الكاشير)',
+      avatar: '🛒',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Guten Tag! Haben Sie alles gefunden? Haben Sie eine Kundenkarte?',
+          npc_ar: 'طاب يومك! هل وجدت كل شيء؟ وهل لديك بطاقة عميل؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'eine Kundenkarte (مفعول به مؤنث)',
+            sub: 'في حالة الـ Akkusativ مع المؤنث، تبقى الأداة (eine) كما هي دون تغيير.'
+          },
+          choices: [
+            {
+              de: 'Nein, ich habe keine Kundenkarte. Ich möchte bitte zahlen.',
+              ar: 'لا، ليس لدي بطاقة عميل. أود أن أدفع الحساب من فضلك.',
+              xp: 20
+            },
+            {
+              de: 'Ja, hier ist meine Karte. Vielen Dank!',
+              ar: 'نعم، تفضل بطاقتي. شكراً جزيلاً!',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Das macht zusammen 18 Euro und 40 Cent. Wie möchten Sie bezahlen?',
+          npc_ar: 'المجموع 18 يورو و40 سنتاً. كيف ترغب في الدفع؟',
+          grammar: {
+            badge: 'Dativ',
+            text: 'mit der Karte (حرف جر + مجرور)',
+            sub: 'حرف الجر (mit) يأتي دائماً بعده Dativ، فتتحول die Karte إلى der Karte.'
+          },
+          choices: [
+            {
+              de: 'Ich bezahle mit der Karte, bitte.',
+              ar: 'سأدفع بالبطاقة المصرفية، من فضلك.',
+              xp: 25
+            },
+            {
+              de: 'Ich bezahle bar. Hier sind zwanzig Euro.',
+              ar: 'سأدفع نقداً. ها هي عشرون يورو.',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Vielen Dank! Und hier ist Ihr Wechselgeld. Brauchen Sie den Kassenbon?',
+          npc_ar: 'شكراً جزيلاً! وتفضل باقي الحساب. هل تحتاج إلى إيصال الشراء (الفاتورة)؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'den Kassenbon (مفعول به مذكر)',
+            sub: 'هنا تحول der Kassenbon إلى den Kassenbon لأنه مفعول به مباشر لفعل brauchen.'
+          },
+          choices: [
+            {
+              de: 'Ja bitte, geben Sie mir den Bon.',
+              ar: 'نعم من فضلك، أعطني الإيصال.',
+              xp: 25
+            },
+            {
+              de: 'Nein danke, ich brauche ihn nicht. Einen schönen Tag noch!',
+              ar: 'لا شكراً، لا أحتاجه. أتمنى لك يوماً جميلاً!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Danke gleichfalls! Auf Wiedersehen und bis zum nächsten Mal! 🎉'
+    },
+    Restaurant: {
+      id: 'restaurant_dialogue',
+      title: 'Bestellen beim Kellner (الطلب من النادل في المطعم)',
+      world: 'Restaurant',
+      speaker: 'Kellner (النادل)',
+      avatar: '🍽️',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Guten Abend! Willkommen im Restaurant. Haben Sie einen Tisch reserviert?',
+          npc_ar: 'مساء الخير! أهلاً بكم في المطعم. هل حجزتم طاولة مسبقاً؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'einen Tisch (مفعول به مذكر)',
+            sub: 'أصل الكلمة der Tisch، وتتحول مع فعل haben إلى einen Tisch (Akkusativ).'
+          },
+          choices: [
+            {
+              de: 'Guten Abend! Nein, haben Sie einen freien Tisch für zwei Personen?',
+              ar: 'مساء الخير! لا، هل لديكم طاولة شاغرة لشخصين؟',
+              xp: 20
+            },
+            {
+              de: 'Ja, wir haben einen Tisch auf den Namen Müller reserviert.',
+              ar: 'نعم، لقد حجزنا طاولة باسم عائلة مولر.',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Sehr gerne, folgen Sie mir bitte! Hier ist die Speisekarte. Was möchten Sie trinken?',
+          npc_ar: 'بكل سرور، تفضلوا معي! ها هي قائمة الطعام. ماذا تودون أن تشربوا؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'einen Kaffee / ein Glas Wasser',
+            sub: 'استخدم دائماً صيغة الأدب: Ich hätte gerne... (أود الحصول على...).'
+          },
+          choices: [
+            {
+              de: 'Ich hätte gerne ein Glas Mineralwasser und einen Apfelsaft, bitte.',
+              ar: 'أود الحصول على كأس ماء معدني وعصير تفاح، من فضلك.',
+              xp: 25
+            },
+            {
+              de: 'Für mich bitte eine Tasse Kaffee mit Milch und Zucker.',
+              ar: 'بالنسبة لي فنجان قهوة مع الحليب والسكر من فضلك.',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Sehr wohl! Hat es Ihnen geschmeckt? Möchten Sie die Rechnung haben?',
+          npc_ar: 'على الرحب والسعة! هل أعجبكم الطعام؟ هل تودون الحصول على الفاتورة؟',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'die Rechnung (مفعول به مؤنث)',
+            sub: 'طلب الفاتورة بأدب: Könnten wir bitte die Rechnung haben?'
+          },
+          choices: [
+            {
+              de: 'Ja, es war ausgezeichnet! Könnten wir bitte die Rechnung haben?',
+              ar: 'نعم، كان الطعام ممتازاً! هل يمكننا الحصول على الفاتورة من فضلك؟',
+              xp: 25
+            },
+            {
+              de: 'Wir möchten bitte zahlen. Zusammen, bitte!',
+              ar: 'نود أن ندفع الحساب. معاً من فضلك!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Vielen Dank für Ihren Besuch! Beehren Sie uns bald wieder! Auf Wiedersehen! 🌟'
+    },
+    City: {
+      id: 'city_dialogue',
+      title: 'Nach dem Weg fragen (السؤال عن الطريق في المدينة)',
+      world: 'City',
+      speaker: 'Passant (أحد المارة)',
+      avatar: '🗺️',
+      rewardXP: 100,
+      steps: [
+        {
+          npc: 'Hallo! Kann ich Ihnen weiterhelfen? Suchen Sie etwas?',
+          npc_ar: 'مرحباً! هل يمكنني مساعدتك؟ هل تبحث عن شيء؟',
+          grammar: {
+            badge: 'Dativ',
+            text: 'zum Hauptbahnhof (zu + dem)',
+            sub: 'حرف الجر zu يتطلب دائماً Dativ: zu + dem Bahnhof = zum Bahnhof.'
+          },
+          choices: [
+            {
+              de: 'Entschuldigung, wie komme ich bitte zum Hauptbahnhof?',
+              ar: 'معذرة، كيف أصل إلى محطة القطار المركزية من فضلك؟',
+              xp: 20
+            },
+            {
+              de: 'Gibt es hier in der Nähe eine Apotheke oder ein Krankenhaus?',
+              ar: 'هل توجد هنا صيدلية قريبة أو مستشفى؟',
+              xp: 20
+            }
+          ]
+        },
+        {
+          npc: 'Gehen Sie geradeaus bis zur Ampel, dann biegen Sie nach links in die Schillerstraße ein.',
+          npc_ar: 'امشِ إلى الأمام مباشرة حتى إشارة المرور، ثم انعطف يساراً إلى شارع شيلر.',
+          grammar: {
+            badge: 'Dativ',
+            text: 'bis zur Ampel (zu + der)',
+            sub: 'الاسم المؤنث die Ampel يصبح zur Ampel (zu + der) في حالة المجرور Dativ.'
+          },
+          choices: [
+            {
+              de: 'Ist es weit von hier? Kann ich zu Fuß dorthin gehen?',
+              ar: 'هل المكان بعيد من هنا؟ هل يمكنني الذهاب إلى هناك مشياً؟',
+              xp: 25
+            },
+            {
+              de: 'Muss ich danach noch die Straße überqueren?',
+              ar: 'هل يجب عليّ بعد ذلك عبور الشارع أيضاً؟',
+              xp: 25
+            }
+          ]
+        },
+        {
+          npc: 'Nein, es sind nur etwa fünf Gehminuten. Sie können das Gebäude direkt sehen!',
+          npc_ar: 'لا، المسافة حوالي خمس دقائق مشياً فقط. يمكنك رؤية المبنى مباشرة!',
+          grammar: {
+            badge: 'Akkusativ',
+            text: 'das Gebäude sehen',
+            sub: 'المحايد das يبقى كما هو في الـ Akkusativ.'
+          },
+          choices: [
+            {
+              de: 'Vielen herzlichen Dank für Ihre Hilfe! Auf Wiedersehen!',
+              ar: 'شكراً جزيلاً من القلب على مساعدتك! إلى اللقاء!',
+              xp: 25
+            },
+            {
+              de: 'Das ist wunderbar, danke schön und einen schönen Tag!',
+              ar: 'هذا رائع، شكراً جزيلاً وأتمنى لك يوماً جميلاً!',
+              xp: 25
+            }
+          ]
+        }
+      ],
+      outro: 'Gern geschehen! Gute Reise und viel Erfolg! 👋'
+    }
+  };
+
+  // Launch Dialogue Flow
+  function openDialogue(worldName) {
+    const dialogue = DIALOGUES[worldName] || DIALOGUES.Supermarket;
+    let currentStepIndex = 0;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'de-dialogue-overlay';
+    overlay.id = 'de-active-dialogue-modal';
+
+    function renderStep() {
+      const step = dialogue.steps[currentStepIndex];
+      if (!step) {
+        // Outro / Finish
+        overlay.innerHTML = `
+          <div class="de-dialogue-box">
+            <div class="de-dialogue-top">
+              <div class="de-dialogue-title-wrap">
+                <div class="de-dialogue-avatar">${dialogue.avatar}</div>
+                <div>
+                  <div class="de-dialogue-speaker-name">${dialogue.speaker}</div>
+                  <div class="de-dialogue-sub">${dialogue.title}</div>
+                </div>
+              </div>
+              <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.2);" id="de-dlg-close">&times;</button>
+            </div>
+            <div class="de-dialogue-body" style="text-align:center; padding:36px 24px;">
+              <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+              <div style="font-size:24px; font-weight:900; color:#0f172a; margin-bottom:6px;">Wunderbar! المحادثة اكتملت!</div>
+              <div style="font-size:16px; font-weight:700; color:#10b981; margin-bottom:18px;">+${dialogue.rewardXP} XP مكتسبة</div>
+              <div class="de-npc-speech-bubble" style="text-align:center; margin-bottom:24px;">
+                <div class="de-speech-text-de">${dialogue.outro}</div>
+              </div>
+              <button class="de-action-btn de-btn-speak" style="margin:0 auto; max-width:240px;" id="de-dlg-finish-btn">
+                <span>✓</span> <span>إنهاء والعودة للعالم</span>
+              </button>
+            </div>
+          </div>
+    `;
+        speakGerman(dialogue.outro);
+        State.addXP(dialogue.rewardXP, `أتممت محادثة ${dialogue.title}!`);
+        playSFX('LessonComplete');
+
+        document.getElementById('de-dlg-close').addEventListener('click', () => overlay.remove());
+        document.getElementById('de-dlg-finish-btn').addEventListener('click', () => overlay.remove());
+        return;
+      }
+
+      overlay.innerHTML = `
+        <div class="de-dialogue-box">
+          <div class="de-dialogue-top">
+            <div class="de-dialogue-title-wrap">
+              <div class="de-dialogue-avatar">${dialogue.avatar}</div>
+              <div>
+                <div class="de-dialogue-speaker-name">${dialogue.speaker}</div>
+                <div class="de-dialogue-sub">${dialogue.title} - خطوة ${currentStepIndex + 1}/${dialogue.steps.length}</div>
+              </div>
+            </div>
+            <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.2);" id="de-dlg-close">&times;</button>
+          </div>
+          <div class="de-dialogue-body">
+            <div class="de-npc-speech-bubble">
+              <div class="de-speech-text-de">${step.npc}</div>
+              <div class="de-speech-text-ar">${step.npc_ar}</div>
+              <button class="de-speech-listen-btn" id="de-npc-listen-btn">
+                <span>🔊</span> <span>استمع مرة أخرى</span>
+              </button>
+            </div>
+
+            <div class="de-grammar-callout">
+              <span class="de-grammar-badge ${step.grammar.badge === 'Akkusativ' ? 'badge-akkusativ' : 'badge-dativ'}">
+                ${step.grammar.badge}
+              </span>
+              <div>
+                <div class="de-grammar-text">${step.grammar.text}</div>
+                <div class="de-grammar-sub">${step.grammar.sub}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="de-choices-header">اختر ردك باللغة الألمانية (أو انطق به):</div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                ${step.choices.map((c, idx) => `
+                  <div class="de-choice-option" data-idx="${idx}">
+                    <div style="text-align:left;">
+                      <div class="de-choice-de">${c.de}</div>
+                      <div class="de-choice-ar">${c.ar}</div>
+                    </div>
+                    <div class="de-choice-speak-icon" title="انطق هذا الرد أو اضغط عليه">
+                      🗣️
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+    `;
+
+      // Speak NPC line
+      speakGerman(step.npc);
+
+      // Listen again button
+      document.getElementById('de-npc-listen-btn').addEventListener('click', () => {
+        speakGerman(step.npc);
+      });
+
+      // Close button
+      document.getElementById('de-dlg-close').addEventListener('click', () => {
+        overlay.remove();
+      });
+
+      // Option click handlers
+      overlay.querySelectorAll('.de-choice-option').forEach(optEl => {
+        optEl.addEventListener('click', () => {
+          const idx = parseInt(optEl.getAttribute('data-idx'), 10);
+          const chosen = step.choices[idx];
+          playSFX('Correct');
+          speakGerman(chosen.de);
+          State.addXP(chosen.xp, 'رد ألماني صحيح');
+          currentStepIndex++;
+          setTimeout(renderStep, 1100);
+        });
+      });
+    }
+
+    document.body.appendChild(overlay);
+    renderStep();
+  }
+
+  // 18. World Dialogue Trigger in 3D Scenes
+  function renderWorldDialogueTrigger() {
+    const world = detectWorld();
+    if (!world || !DIALOGUES[world]) return;
+    if (document.getElementById('de-world-dialogue-btn')) return;
+
+    const dlg = DIALOGUES[world];
+    const trigger = document.createElement('button');
+    trigger.id = 'de-world-dialogue-btn';
+    trigger.className = 'de-world-dialogue-trigger';
+    trigger.innerHTML = `
+
+      <span>💬 محادثة: ${dlg.title.split(' ')[0]}</span>
+    `;
+    trigger.addEventListener('click', () => {
+      openDialogue(world);
+    });
+    document.body.appendChild(trigger);
+  }
+
+
+  // 19. Render 3D Crosshair
+  function renderCrosshair() {
+    if (detectWorld() && !document.getElementById('de-3d-crosshair')) {
+      const ch = document.createElement('div');
+      ch.id = 'de-3d-crosshair';
+      ch.className = 'de-crosshair';
+      document.body.appendChild(ch);
+    }
+  }
+
   // 16. Initialize everything on load
   function init() {
     renderHUD();
     renderQuestWidget();
     setupGermanOnlyHome();
+    renderCrosshair();
+    renderWorldDialogueTrigger();
     setupObjectListeners();
     console.log('✅ German Learning Engine (Deutsche Lern-Engine) active!');
   }
@@ -926,6 +1407,9 @@
     speakGerman,
     openEnhancedWordModal,
     openDerDieDasGame,
+    openVocabularyReview,
+    openDialogue,
+    DIALOGUES,
     handleItemInteraction,
     setSupportLanguage,
     getSupportLanguage
