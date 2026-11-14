@@ -137,12 +137,28 @@
     completedQuests: JSON.parse(localStorage.getItem('de_completed_quests') || '[]'),
     
     addXP(points, reason) {
+      const prevXP = this.xp;
       this.xp += points;
       localStorage.setItem('de_xp', this.xp.toString());
       this.calcLevel();
       this.updateHUD();
       showToast(`+${points} XP: ${reason}`);
       playSFX('Correct');
+
+      // XP Milestone Achievement Popups
+      const milestones = [
+        { xp: 100,  name: 'Sprachanfänger',  badge: '🌟' },
+        { xp: 250,  name: 'Sprachentdecker', badge: '🔥' },
+        { xp: 500,  name: 'Sprachtalent',    badge: '🏅' },
+        { xp: 1000, name: 'Sprachprofi',     badge: '🏆' },
+        { xp: 2000, name: 'Deutsch-Meister', badge: '🎖️' }
+      ];
+      for (const m of milestones) {
+        if (prevXP < m.xp && this.xp >= m.xp) {
+          setTimeout(() => showAchievementModal(m), 600);
+          break;
+        }
+      }
     },
     
     calcLevel() {
@@ -254,6 +270,9 @@
       <button class="de-hud-btn" id="de-launch-game-btn" title="العب لعبة أدوات التعريف">
         <span>🎮</span> <span>Der Die Das</span>
       </button>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
     `;
     document.body.appendChild(hud);
 
@@ -303,6 +322,9 @@
           </div>
         `).join('')}
       </div>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
     `;
     document.body.appendChild(widget);
   }
@@ -397,6 +419,9 @@
           <span>🎤</span> <span>تدرّب على النطق</span>
         </button>
       </div>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
     `;
     document.body.appendChild(modal);
 
@@ -527,6 +552,9 @@
           </button>
         </div>
       </div>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
     `;
     document.body.appendChild(overlay);
 
@@ -905,7 +933,10 @@
               </button>
             </div>
           </div>
-        `;
+          <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
+    `;
         speakGerman(dialogue.outro);
         State.addXP(dialogue.rewardXP, `أتممت محادثة ${dialogue.title}!`);
         playSFX('LessonComplete');
@@ -964,7 +995,10 @@
             </div>
           </div>
         </div>
-      `;
+        <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
+    `;
 
       // Speak NPC line
       speakGerman(step.npc);
@@ -1010,6 +1044,9 @@
     trigger.innerHTML = `
       
       <span>💬 محادثة: ${dlg.title.split(' ')[0]}</span>
+      <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="مراجعة المفردات">
+        📚 Vokabeln
+      </button>
     `;
     trigger.addEventListener('click', () => {
       openDialogue(world);

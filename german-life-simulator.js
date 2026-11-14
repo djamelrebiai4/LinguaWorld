@@ -290,6 +290,26 @@
         'Gast: "Ich hätte gerne ein Schnitzel mit Pommes und eine Cola."',
         'Du antwortest höflich: "Sehr gerne, kommt sofort!"',
         'Rechnung erstellen und Trinkgeld kassieren.'
+      ],
+      miniGame: [
+        {
+          customerSays: 'Kann ich bitte die Speisekarte haben?',
+          customerSays_ar: 'هل يمكنني الحصول على قائمة الطعام من فضلك؟',
+          correct: { de: 'Natürlich! Einen Moment, bitte.', ar: 'بالطبع! لحظة من فضلك.' },
+          wrong: { de: 'Nein, das geht nicht.', ar: 'لا، هذا غير ممكن.' }
+        },
+        {
+          customerSays: 'Ich hätte gerne ein Schnitzel mit Pommes, bitte.',
+          customerSays_ar: 'أرغب في شنيتزل مع البطاطس المقلية من فضلك.',
+          correct: { de: 'Sehr gerne! Kommt sofort.', ar: 'بكل سرور! سيأتي فوراً.' },
+          wrong: { de: 'Das haben wir leider nicht.', ar: 'للأسف ليس لدينا هذا.' }
+        },
+        {
+          customerSays: 'Darf ich bitte die Rechnung haben?',
+          customerSays_ar: 'هل يمكنني الحصول على الفاتورة من فضلك؟',
+          correct: { de: 'Natürlich, einen Moment bitte. Das macht 18 Euro.', ar: 'بالطبع، لحظة من فضلك. المجموع 18 يورو.' },
+          wrong: { de: 'Wir machen jetzt Feierabend.', ar: 'انتهى وقت عملنا الآن.' }
+        }
       ]
     },
     {
@@ -304,6 +324,26 @@
         'Kunde: "Kann ich mit Karte zahlen?"',
         'Du: "Ja, natürlich. Bitte die Karte auflegen."',
         'Kassenbon aushändigen: "Einen schönen Tag noch!"'
+      ],
+      miniGame: [
+        {
+          customerSays: 'Haben Sie eine Kundenkarte?',
+          customerSays_ar: 'هل لديك بطاقة ولاء العملاء؟',
+          correct: { de: 'Ja, haben Sie eine Kundenkarte dabei?', ar: 'نعم، هل تحمل بطاقة العملاء معك؟' },
+          wrong: { de: 'Das ist mir egal.', ar: 'هذا لا يعنيني.' }
+        },
+        {
+          customerSays: 'Kann ich mit Karte zahlen?',
+          customerSays_ar: 'هل يمكنني الدفع ببطاقة الائتمان؟',
+          correct: { de: 'Ja, natürlich. Bitte die Karte auflegen.', ar: 'نعم، بالطبع. ضع البطاقة على القارئ من فضلك.' },
+          wrong: { de: 'Nein, nur Bargeld.', ar: 'لا، نقداً فقط.' }
+        },
+        {
+          customerSays: 'Kann ich bitte eine Tüte haben?',
+          customerSays_ar: 'هل يمكنني الحصول على كيس من فضلك؟',
+          correct: { de: 'Ja, das kostet 20 Cent. Hier ist Ihre Tüte.', ar: 'نعم، تكلف 20 سنت. هذه كيستك.' },
+          wrong: { de: 'Wir haben keine Tüten mehr.', ar: 'لم يتبق لدينا أكياس.' }
+        }
       ]
     },
     {
@@ -318,6 +358,26 @@
         'Erkläre den Weg zum Brandenburger Tor und zur Kathedrale.',
         'Beantworte Fragen der Touristen auf Deutsch.',
         'Sorge für gute Stimmung in der Gruppe.'
+      ],
+      miniGame: [
+        {
+          customerSays: 'Wie weit ist es zum Brandenburger Tor?',
+          customerSays_ar: 'كم المسافة إلى بوابة براندنبورغ؟',
+          correct: { de: 'Es sind nur etwa fünf Gehminuten von hier.', ar: 'حوالي خمس دقائق سيراً على الأقدام من هنا.' },
+          wrong: { de: 'Das weiß ich auch nicht.', ar: 'لا أعرف أيضاً.' }
+        },
+        {
+          customerSays: 'Wann wurde dieser Platz erbaut?',
+          customerSays_ar: 'متى تم بناء هذه الساحة؟',
+          correct: { de: 'Diese Sehenswürdigkeit wurde im 18. Jahrhundert erbaut.', ar: 'بني هذا المعلم في القرن الثامن عشر.' },
+          wrong: { de: 'Keine Ahnung, ich bin neu hier.', ar: 'لا أعرف، أنا جديد هنا.' }
+        },
+        {
+          customerSays: 'Dürfen wir hier Fotos machen?',
+          customerSays_ar: 'هل يُسمح لنا بالتصوير هنا؟',
+          correct: { de: 'Ja, natürlich! Das ist ein wunderschönes Fotomotiv.', ar: 'نعم، بالطبع! هذا موضوع تصوير رائع.' },
+          wrong: { de: 'Nein, das ist streng verboten.', ar: 'لا، هذا محظور تماماً.' }
+        }
       ]
     }
   ];
@@ -435,6 +495,9 @@
           </button>
           <button class="de-life-tab ${defaultTab === 'routine' ? 'active' : ''}" data-tab="routine">
             <span>🛌</span> <span>Tagesablauf (الراحة والروتين)</span>
+          </button>
+          <button class="de-life-tab ${defaultTab === 'tagesaufgabe' ? 'active' : ''}" data-tab="tagesaufgabe">
+            <span>📅</span> <span>Tagesaufgabe (التحدي اليومي)</span>
           </button>
         </div>
 
@@ -609,8 +672,70 @@
         LifeState.restoreEnergy();
         renderTabContent('routine');
       });
+    } else if (tab === 'tagesaufgabe') {
+      const today = new Date().toDateString();
+      let dailyData = JSON.parse(localStorage.getItem('de_daily_challenge') || '{}');
+      if (dailyData.date !== today) {
+        dailyData = { date: today, completed: [false, false, false], bonusGiven: false };
+        localStorage.setItem('de_daily_challenge', JSON.stringify(dailyData));
+      }
+
+      const challenges = [
+        { icon: '📚', title: 'تعلم 5 كلمات جديدة اليوم', desc: 'Lerne heute 5 neue Vokabeln auf Deutsch' },
+        { icon: '💬', title: 'أتمم محادثة واحدة كاملة', desc: 'Führe ein vollständiges Gespräch mit einem NPC' },
+        { icon: '💼', title: 'اعمل في وظيفة اليوم', desc: 'Arbeite heute in einem Job und verdiene Geld' }
+      ];
+
+      const allDone = dailyData.completed.every(Boolean);
+      container.innerHTML = `
+        <div style="margin-bottom:18px;">
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Tagesaufgaben (تحديات اليوم)</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">أتمم التحديات اليومية الثلاثة لتحصل على مكافأة 200 XP إضافية!</p>
+        </div>
+        <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:16px; padding:14px 18px; margin-bottom:16px; font-size:13px; font-weight:700; color:#92400e;">
+          📅 تحدي اليوم: <b>${today}</b>
+        </div>
+        ${challenges.map((ch, i) => `
+          <div class="de-daily-challenge-card">
+            <div class="de-challenge-check ${dailyData.completed[i] ? 'done' : ''}" data-idx="${i}" id="de-challenge-check-${i}">
+              ${dailyData.completed[i] ? '✓' : ''}
+            </div>
+            <div style="font-size:28px;">${ch.icon}</div>
+            <div style="flex:1;">
+              <div style="font-weight:900; font-size:15px; color:#0f172a;">${ch.title}</div>
+              <div style="font-size:12px; color:#64748b; font-weight:600;">${ch.desc}</div>
+            </div>
+            ${dailyData.completed[i] ? '<span style="font-size:11px;font-weight:800;color:#059669;background:#dcfce7;padding:3px 8px;border-radius:10px;">✓ أُنجز</span>' : ''}
+          </div>
+        `).join('')}
+        ${allDone ? `
+          <div style="text-align:center; padding:20px; background:linear-gradient(135deg,#f0fdf4,#dcfce7); border-radius:18px; margin-top:12px;">
+            <div style="font-size:40px; margin-bottom:8px;">🏆</div>
+            <div style="font-weight:900; font-size:16px; color:#059669;">مبروك! أنجزت جميع تحديات اليوم!</div>
+            <div style="font-size:13px; color:#15803d; font-weight:700;">+200 XP مكافأة اليوم</div>
+          </div>
+        ` : ''}
+      `;
+
+      container.querySelectorAll('.de-challenge-check:not(.done)').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-idx'), 10);
+          dailyData.completed[idx] = true;
+          localStorage.setItem('de_daily_challenge', JSON.stringify(dailyData));
+          playSFX('Correct');
+          showToast(`✅ أحسنت! أنجزت التحدي: ${challenges[idx].title}`);
+          if (dailyData.completed.every(Boolean) && !dailyData.bonusGiven) {
+            dailyData.bonusGiven = true;
+            localStorage.setItem('de_daily_challenge', JSON.stringify(dailyData));
+            if (window.GermanEngine && window.GermanEngine.State) {
+              window.GermanEngine.State.addXP(200, 'إنجاز جميع تحديات اليوم!');
+            }
+            showToast('🏆 +200 XP مكافأة إنجاز تحديات اليوم!');
+          }
+          renderTabContent('tagesaufgabe');
+        });
+      });
     }
-  }
 
   // 11. NPC Social Chat Window
   function openNPCConversation(npcKey) {
