@@ -272,6 +272,10 @@ function useWorldModel(modelPath, collisionPath, collisionNode, playerStart, onP
         object.castShadow = false;
         if (materials.MazeMat) object.material = materials.MazeMat;
       }
+      if (modelPath === '/Grounds/Restaurant.glb' &&
+        (object.name === 'I_Male' || object.name === 'I_Female')) {
+        object.visible = false;
+      }
     });
     return clone;
   }, [scene, materials]);
@@ -363,6 +367,178 @@ function SupermarketWorld({ onPositionsReady }) {
   );
 }
 
+const WORLD_NPCS = {
+  1: [
+    {
+      id: 'max',
+      npcKey: 'max',
+      name: { ar: 'ماكس بيكر', en: 'Max Becker' },
+      model: 'Ranger',
+      path: [{ x: 27, z: 91 }, { x: 36, z: 91 }, { x: 36, z: 100 }, { x: 27, z: 100 }],
+      speed: 1.2,
+      walkAnimation: 'Walking_A'
+    },
+    {
+      id: 'city-roamer-1',
+      name: { ar: 'مقيم في المدينة', en: 'Town resident' },
+      model: 'Rogue',
+      path: [{ x: 17, z: 93 }, { x: 24, z: 93 }, { x: 24, z: 99 }, { x: 17, z: 99 }],
+      speed: 1.05,
+      walkAnimation: 'Walking_B'
+    },
+    {
+      id: 'city-roamer-2',
+      name: { ar: 'مقيم في المدينة', en: 'Town resident' },
+      model: 'Mage',
+      path: [{ x: 38, z: 106 }, { x: 45, z: 106 }, { x: 45, z: 112 }, { x: 38, z: 112 }],
+      speed: 1.1,
+      walkAnimation: 'Walking_C'
+    }
+  ],
+  2: [{
+    id: 'herr_weber',
+    npcKey: 'herr_weber',
+    name: { ar: 'السيد هاينريش فيبر', en: 'Herr Heinrich Weber' },
+    model: 'Knight',
+    path: [{ x: -2, z: 4 }, { x: 2, z: 4 }, { x: 2, z: 8 }, { x: -2, z: 8 }],
+    speed: 0.75,
+    walkAnimation: 'Walking_B'
+  }],
+  3: [{
+    id: 'lukas',
+    npcKey: 'lukas',
+    name: { ar: 'لوكاس فاغنر', en: 'Lukas Wagner' },
+    model: 'Mage',
+    path: [{ x: -3, z: -2 }, { x: 3, z: -2 }, { x: 3, z: 2 }, { x: -3, z: 2 }],
+    speed: 0.85,
+    walkAnimation: 'Walking_A'
+  }],
+  4: [{
+    id: 'sophie',
+    npcKey: 'sophie',
+    name: { ar: 'صوفي مولر', en: 'Sophie Müller' },
+    model: 'Rogue',
+    path: [{ x: -3, z: 1 }, { x: 2, z: 1 }, { x: 2, z: 5 }, { x: -3, z: 5 }],
+    speed: 0.8,
+    walkAnimation: 'Walking_C'
+  }],
+  5: [{
+    id: 'hanna',
+    npcKey: 'hanna',
+    name: { ar: 'هانا شنايدر', en: 'Hanna Schneider' },
+    model: 'Barbarian',
+    path: [{ x: -3, z: 2 }, { x: 3, z: 2 }, { x: 3, z: 7 }, { x: -3, z: 7 }],
+    speed: 0.8,
+    walkAnimation: 'Walking_B'
+  }]
+};
+
+function bindNpcAnimation(clip, nodes) {
+  if (!clip) return [];
+  return clip.tracks.map((track) => {
+    const property = ['.quaternion', '.position', '.scale']
+      .find((suffix) => track.name.endsWith(suffix));
+    if (!property) return null;
+    const node = nodes.get(track.name.slice(0, -property.length));
+    return node ? { node, property, interpolant: track.createInterpolant() } : null;
+  }).filter(Boolean);
+}
+
+function applyNpcAnimation(tracks, time, duration) {
+  if (!duration) return;
+  const clipTime = time % duration;
+  tracks.forEach(({ node, property, interpolant }) => {
+    const value = interpolant.evaluate(clipTime);
+    if (property === '.quaternion') node.quaternion.fromArray(value);
+    else if (property === '.position') node.position.fromArray(value);
+    else node.scale.fromArray(value);
+  });
+}
+
+function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isPaused }) {
+  const { scene } = useGLTF(`/Grounds/NPC/${npc.model}.glb`, true);
+  const groupRef = React.useRef(null);
+  const routeIndex = React.useRef(1);
+  const waitTime = React.useRef(0.5);
+  const animationTime = React.useRef(0);
+  const animationMode = React.useRef(null);
+  const model = React.useMemo(() => scene.clone(true), [scene]);
+  const nodes = React.useMemo(() => {
+    const lookup = new Map();
+    model.traverse((node) => {
+      if (node.name) lookup.set(node.name, node);
+      if (node.isMesh || node.isSkinnedMesh) {
+        node.castShadow = true;
+        node.receiveShadow = false;
+      }
+    });
+    model.traverse((node) => {
+      if (!node.isSkinnedMesh) return;
+      const skeleton = node.skeleton.clone();
+      skeleton.bones = skeleton.bones.map((bone) => lookup.get(bone.name));
+      node.bind(skeleton, node.bindMatrix);
+    });
+    return lookup;
+  }, [model]);
+  const walkClip = movementAnimations.find((clip) => clip.name === npc.walkAnimation) ||
+    movementAnimations.find((clip) => clip.name === 'Walking_A');
+  const idleClip = idleAnimations.find((clip) => clip.name === 'Idle_A') ||
+    idleAnimations.find((clip) => clip.name === 'Idle_B');
+  const walkTracks = React.useMemo(
+    () => bindNpcAnimation(walkClip, nodes),
+    [walkClip, nodes]
+  );
+  const idleTracks = React.useMemo(
+    () => bindNpcAnimation(idleClip, nodes),
+    [idleClip, nodes]
+  );
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    let walking = false;
+    if (!isPaused && npc.path.length > 1) {
+      if (waitTime.current > 0) {
+        waitTime.current = Math.max(0, waitTime.current - delta);
+      } else {
+        const target = npc.path[routeIndex.current];
+        const dx = target.x - group.position.x;
+        const dz = target.z - group.position.z;
+        const distance = Math.hypot(dx, dz);
+
+        if (distance < 0.2) {
+          routeIndex.current = (routeIndex.current + 1) % npc.path.length;
+          waitTime.current = 1.1;
+        } else {
+          const step = Math.min(distance, npc.speed * delta);
+          group.position.x += (dx / distance) * step;
+          group.position.z += (dz / distance) * step;
+          group.rotation.y = Math.atan2(dx, dz);
+          walking = true;
+        }
+      }
+    }
+
+    onPosition(npc.id, group.position.x, group.position.z);
+    if (isPaused) return;
+    if (animationMode.current !== walking) {
+      animationMode.current = walking;
+      animationTime.current = 0;
+    }
+    animationTime.current += delta;
+    const clip = walking ? walkClip : idleClip;
+    const tracks = walking ? walkTracks : idleTracks;
+    applyNpcAnimation(tracks, animationTime.current, clip && clip.duration);
+  });
+
+  return h('group', {
+    ref: groupRef,
+    position: [npc.path[0].x, 0, npc.path[0].z]
+  },
+    h('primitive', { object: model }));
+}
+
 function WorldExplorer({
   joystickInput,
   currentLevel,
@@ -376,11 +552,28 @@ function WorldExplorer({
   const [level, setLevel] = React.useState(currentLevel);
   const [isLoading, setIsLoading] = React.useState(false);
   const [nearbyPortal, setNearbyPortal] = React.useState(null);
+  const [nearbyNpc, setNearbyNpc] = React.useState(null);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
   const currentPortal = React.useRef(null);
+  const currentNpc = React.useRef(null);
+  const npcPositions = React.useRef(new Map());
   const loadingRef = React.useRef(false);
   const readyLevel = React.useRef(null);
+  const { animations: movementAnimations } = useGLTF('/Grounds/NPC/Movement.glb', true);
+  const { animations: idleAnimations } = useGLTF('/Grounds/NPC/General.glb', true);
+  const activeNpcs = WORLD_NPCS[level] || [];
+
+  const updateNpcPosition = React.useCallback((id, x, z) => {
+    let position = npcPositions.current.get(id);
+    if (!position) {
+      position = { x, z };
+      npcPositions.current.set(id, position);
+    } else {
+      position.x = x;
+      position.z = z;
+    }
+  }, []);
 
   React.useEffect(() => {
     if (currentLevel !== null && currentLevel !== level) setLevel(currentLevel);
@@ -420,14 +613,27 @@ function WorldExplorer({
     if (!positions || !playerBody.current || isLoading || isPaused) return;
     const player = playerBody.current.translation();
     let match = null;
+    let closestNpc = null;
+    let closestNpcDistance = 4.5;
 
-    if (level === 1) {
+    activeNpcs.forEach((npc) => {
+      if (!npc.npcKey) return;
+      const position = npcPositions.current.get(npc.id);
+      if (!position) return;
+      const distance = Math.hypot(player.x - position.x, player.z - position.z);
+      if (distance < closestNpcDistance) {
+        closestNpc = npc;
+        closestNpcDistance = distance;
+      }
+    });
+
+    if (!closestNpc && level === 1) {
       match = CITY_PORTALS.find((portal) => {
         const dx = player.x - portal.position.x;
         const dz = player.z - portal.position.z;
         return dx * dx + dz * dz <= portal.radius * portal.radius;
       }) || null;
-    } else {
+    } else if (!closestNpc) {
       const exit = INTERIOR_EXITS[level];
       if (exit) {
         const dx = player.x - exit.position.x;
@@ -444,6 +650,11 @@ function WorldExplorer({
       }
     }
 
+    const nextNpcId = closestNpc ? closestNpc.id : null;
+    if (currentNpc.current !== nextNpcId) {
+      currentNpc.current = nextNpcId;
+      setNearbyNpc(closestNpc);
+    }
     const nextId = match ? match.id : null;
     if (currentPortal.current !== nextId) {
       currentPortal.current = nextId;
@@ -459,20 +670,33 @@ function WorldExplorer({
     changeLevel(portal.targetLevel, false);
   }, [changeLevel]);
 
+  const talkToNpc = React.useCallback((npc) => {
+    if (!npc || !npc.npcKey) return;
+    const openConversation = window.GermanLife && window.GermanLife.openNPCConversation;
+    if (typeof openConversation !== 'function') {
+      console.error(`NPC conversation is unavailable for "${npc.npcKey}".`);
+      return;
+    }
+    if (document.pointerLockElement) document.exitPointerLock();
+    openConversation(npc.npcKey);
+  }, []);
+
   React.useEffect(() => {
-    if (nearbyPortal && document.pointerLockElement) document.exitPointerLock();
-  }, [nearbyPortal]);
+    if ((nearbyPortal || nearbyNpc) && document.pointerLockElement) document.exitPointerLock();
+  }, [nearbyPortal, nearbyNpc]);
 
   React.useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.repeat || event.key.toLowerCase() !== 'f' || !nearbyPortal) return;
+      if (event.repeat || event.key.toLowerCase() !== 'f') return;
+      if (!nearbyNpc && !nearbyPortal) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      enterPortal(nearbyPortal);
+      if (nearbyNpc) talkToNpc(nearbyNpc);
+      else enterPortal(nearbyPortal);
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [enterPortal, nearbyPortal]);
+  }, [enterPortal, nearbyNpc, nearbyPortal, talkToNpc]);
 
   const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
   const portalText = nearbyPortal
@@ -485,6 +709,12 @@ function WorldExplorer({
         : `ادخل إلى ${nearbyPortal.title[language]}`
     : '';
   const buttonText = language === 'en' ? 'Enter' : 'دخول';
+  const npcText = nearbyNpc
+    ? language === 'en'
+      ? `Talk with ${nearbyNpc.name.en}`
+      : `تحدث مع ${nearbyNpc.name.ar}`
+    : '';
+  const npcButtonText = language === 'en' ? 'Talk' : 'تحدث';
 
   return h(React.Fragment, null,
     positions
@@ -497,7 +727,31 @@ function WorldExplorer({
       })
       : null,
     h(LevelWorld, { level, onPositionsReady }),
-    nearbyPortal
+    activeNpcs.map((npc) => h(NPCCharacter, {
+      key: npc.id,
+      npc,
+      movementAnimations,
+      idleAnimations,
+      onPosition: updateNpcPosition,
+      isPaused: isPaused || isLoading
+    })),
+    nearbyNpc
+      ? h('div', {
+        className: 'lw-world-portal-prompt lw-world-npc-prompt',
+        role: 'status',
+        'aria-live': 'polite',
+        onPointerDown: (event) => event.stopPropagation(),
+        onMouseDown: (event) => event.stopPropagation()
+      },
+      h('span', { className: 'lw-world-portal-text' }, npcText),
+      h('button', {
+        type: 'button',
+        className: 'lw-world-portal-button',
+        onClick: () => talkToNpc(nearbyNpc)
+      }, h('span', null, npcButtonText),
+      h('kbd', null, 'F')))
+      : null,
+    !nearbyNpc && nearbyPortal
       ? h('div', {
         className: 'lw-world-portal-prompt',
         role: 'status',
