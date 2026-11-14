@@ -2,23 +2,26 @@
   'use strict';
 
   const brandName = 'LinguaWorld';
-  const homeHeadline = 'A world of language, waiting to be explored.';
   const logoPath = '/Images/LinguaWorld.svg';
 
   function applyBrand() {
-    if (document.title !== `${brandName} | Learn through discovery`) {
-      document.title = `${brandName} | Learn through discovery`;
-    }
+    const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+    const pageTitle = `${brandName} | Learn German`;
+    const description = language === 'en'
+      ? 'Learn German through interactive worlds, vocabulary, pronunciation, and games. Choose Arabic or English explanations.'
+      : 'تعلّم الألمانية عبر عوالم تفاعلية ومفردات ونطق وألعاب. اختر الشرح بالعربية أو الإنجليزية.';
+    const homeHeadline = language === 'en'
+      ? 'Learn German, one word at a time.'
+      : 'تعلّم الألمانية، كلمةً بعد كلمة.';
 
-    const description = 'Explore languages through interactive worlds, useful vocabulary, and playful practice.';
+    if (document.title !== pageTitle) document.title = pageTitle;
+
     document.querySelectorAll('meta[name="description"], meta[property="og:description"], meta[name="twitter:description"]').forEach((meta) => {
       if (meta.content !== description) meta.content = description;
     });
 
     document.querySelectorAll('meta[property="og:title"], meta[name="twitter:title"]').forEach((meta) => {
-      if (meta.content !== `${brandName} | Learn through discovery`) {
-        meta.content = `${brandName} | Learn through discovery`;
-      }
+      if (meta.content !== pageTitle) meta.content = pageTitle;
     });
 
     document.querySelectorAll('.ls-logo').forEach((logo) => {
@@ -34,6 +37,10 @@
     if (headline && headline.textContent !== homeHeadline) {
       headline.textContent = homeHeadline;
     }
+    if (headline) {
+      headline.lang = language;
+      headline.dir = language === 'ar' ? 'rtl' : 'ltr';
+    }
 
     document.querySelectorAll('link[rel~="icon"]').forEach((icon) => {
       if (icon.getAttribute('href') !== logoPath) icon.setAttribute('href', logoPath);
@@ -47,8 +54,15 @@
     if (structuredData) {
       try {
         const data = JSON.parse(structuredData.textContent);
-        if (data.name !== brandName) {
+        if (
+          data.name !== brandName ||
+          data.description !== description ||
+          !Array.isArray(data.inLanguage) ||
+          data.inLanguage.join(',') !== 'de,ar,en'
+        ) {
           data.name = brandName;
+          data.description = description;
+          data.inLanguage = ['de', 'ar', 'en'];
           structuredData.textContent = JSON.stringify(data);
         }
       } catch (error) {
@@ -59,11 +73,14 @@
 
     const root = document.getElementById('root');
     if (root && root.childElementCount === 0 && root.textContent.includes('Lexi Explorer')) {
-      root.textContent = 'Explore languages through interactive worlds and playful practice with LinguaWorld.';
+      root.textContent = language === 'en'
+        ? 'Learn German through interactive worlds and playful practice with LinguaWorld.'
+        : 'تعلّم الألمانية عبر عوالم تفاعلية وتدريبات ممتعة مع LinguaWorld.';
     }
   }
 
   applyBrand();
+  window.addEventListener('linguaworld:language-change', applyBrand);
   new MutationObserver(applyBrand).observe(document.documentElement, {
     childList: true,
     subtree: true

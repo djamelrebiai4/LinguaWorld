@@ -44,8 +44,11 @@ input:focus-visible {
 
 /* Home */
 .ls-page-wrapper {
+  height: 100dvh;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   color: var(--lw-ink);
   background:
     radial-gradient(ellipse at 86% 9%, rgba(217, 138, 90, 0.14), transparent 30rem),
@@ -114,6 +117,15 @@ input:focus-visible {
   content: "";
 }
 
+.ls-title[dir="rtl"] {
+  letter-spacing: 0;
+  text-align: right;
+}
+
+.ls-title[dir="rtl"]::after {
+  margin-left: auto;
+}
+
 .ls-hero-sub {
   justify-content: flex-start;
   flex-wrap: wrap;
@@ -154,6 +166,14 @@ input:focus-visible {
   gap: 9px;
 }
 
+.ls-language-section[dir="rtl"] {
+  text-align: right;
+}
+
+.ls-language-section[dir="rtl"] .ls-language-grid {
+  justify-content: flex-end;
+}
+
 .ls-lang-btn {
   min-height: 48px;
   padding: 0 17px;
@@ -173,6 +193,17 @@ input:focus-visible {
   border-color: var(--lw-green) !important;
   background: var(--lw-green) !important;
   color: #fffdf8 !important;
+}
+
+.ls-lang-btn[hidden] {
+  display: none !important;
+}
+
+.lw-language-note {
+  margin: 12px 0 0;
+  color: var(--lw-muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .ls-carousel-section,
@@ -369,7 +400,50 @@ input:focus-visible {
 
 .de-hud-btn {
   background: var(--lw-green) !important;
+  color: #fffdf8 !important;
   box-shadow: 0 4px 12px rgba(28, 91, 71, 0.2) !important;
+}
+
+.de-language-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--lw-ink);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.de-language-control select {
+  min-height: 36px;
+  padding: 5px 28px 5px 10px;
+  border: 1px solid var(--lw-line);
+  border-radius: 10px;
+  background: var(--lw-paper-bright);
+  color: var(--lw-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.de-language-control select:focus-visible {
+  outline: 3px solid var(--lw-clay);
+  outline-offset: 2px;
+}
+
+.de-modal-actions .de-action-btn {
+  min-height: 48px;
+  line-height: 1.35;
+}
+
+.de-learning-modal[dir="rtl"] .de-example-box {
+  border-right: 4px solid #2563eb;
+  border-left: 0;
+}
+
+.de-learning-modal[dir="rtl"] .de-word-title,
+.de-learning-modal[dir="rtl"] .de-example-de {
+  direction: ltr;
+  text-align: right;
 }
 
 /* Full-screen learning activities keep their interactions but use the new canvas. */
@@ -423,8 +497,82 @@ input:focus-visible {
 
 .de-learning-modal,
 .de-game-container {
+  box-sizing: border-box;
   border: 1px solid var(--lw-line);
   background: var(--lw-paper-bright) !important;
+}
+
+.de-learning-modal {
+  width: min(540px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.de-game-container {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding-top: 58px;
+}
+
+.de-vocab-review-container {
+  text-align: start;
+}
+
+.de-vocab-review-container h2 {
+  margin: 0 42px 8px;
+  color: var(--lw-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+.de-vocab-review-container p {
+  margin: 0 0 16px;
+  color: var(--lw-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.de-vocab-review-list {
+  display: grid;
+  max-height: min(58vh, 520px);
+  gap: 8px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.de-vocab-review-item {
+  display: flex;
+  min-width: 0;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 14px;
+  border: 1px solid var(--lw-line);
+  border-radius: 12px;
+  background: var(--lw-paper-bright);
+  color: var(--lw-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.de-vocab-review-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(28, 91, 71, 0.42);
+  background: #f0f5ef;
+}
+
+.de-vocab-review-item span:first-child {
+  direction: ltr;
+  font-weight: 800;
+}
+
+.de-vocab-review-item span:last-child {
+  color: var(--lw-muted);
+  font-size: 13px;
 }
 
 @media (max-width: 720px) {
@@ -474,13 +622,50 @@ input:focus-visible {
   }
 
   .de-hud-bar {
+    box-sizing: border-box;
     max-width: calc(100vw - 20px);
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    border-radius: 18px;
   }
 
   .de-quest-widget {
     max-height: 42vh;
     overflow-y: auto;
+  }
+}
+
+@media (max-width: 540px) {
+  .de-learning-modal {
+    bottom: max(12px, env(safe-area-inset-bottom));
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .de-modal-actions {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .de-action-btn {
+    min-height: 48px;
+  }
+
+  .de-game-container {
+    padding: 18px;
+    padding-top: 54px;
+    border-radius: 22px;
+  }
+
+  .de-game-buttons {
+    gap: 7px;
+  }
+
+  .de-choice-btn {
+    min-width: 0;
+    padding: 12px 4px;
+    font-size: clamp(14px, 4vw, 18px);
   }
 }
 
