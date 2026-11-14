@@ -893,6 +893,15 @@ const WORLD_NPCS = {
     path: [{ x: -2, z: 4 }, { x: 2, z: 4 }, { x: 2, z: 8 }, { x: -2, z: 8 }],
     speed: 0.75,
     walkAnimation: 'Walking_B'
+  }, {
+    id: 'house-visitor',
+    name: { ar: 'زائر', en: 'Visitor' },
+    model: 'Rogue',
+    path: [{ x: 4, z: 3 }, { x: 7, z: 3 }, { x: 7, z: 7 }, { x: 4, z: 7 }],
+    speed: 0.65,
+    walkAnimation: 'Walking_C',
+    activityAnimation: 'Interact',
+    stopDuration: 2.4
   }],
   3: [{
     id: 'lukas',
@@ -901,7 +910,18 @@ const WORLD_NPCS = {
     model: 'Mage',
     path: [{ x: -3, z: -2 }, { x: 3, z: -2 }, { x: 3, z: 2 }, { x: -3, z: 2 }],
     speed: 0.85,
-    walkAnimation: 'Walking_A'
+    walkAnimation: 'Walking_A',
+    activityAnimation: 'Interact',
+    stopDuration: 2
+  }, {
+    id: 'classmate-1',
+    name: { ar: 'طالب', en: 'Student' },
+    model: 'Ranger',
+    path: [{ x: -7, z: -4 }, { x: -4, z: -4 }, { x: -4, z: 1 }, { x: -7, z: 1 }],
+    speed: 0.6,
+    walkAnimation: 'Walking_B',
+    activityAnimation: 'Use_Item',
+    stopDuration: 3
   }],
   4: [{
     id: 'sophie',
@@ -910,7 +930,49 @@ const WORLD_NPCS = {
     model: 'Rogue',
     path: [{ x: -3, z: 1 }, { x: 2, z: 1 }, { x: 2, z: 5 }, { x: -3, z: 5 }],
     speed: 0.8,
-    walkAnimation: 'Walking_C'
+    walkAnimation: 'Walking_C',
+    activityAnimation: 'Use_Item',
+    stopDuration: 2.2
+  }, {
+    id: 'karim',
+    npcKey: 'karim',
+    name: { ar: 'كريم يلماز', en: 'Karim Yilmaz' },
+    model: 'Knight',
+    path: [{ x: 6, z: 4 }, { x: 8, z: 4 }, { x: 8, z: 7 }, { x: 6, z: 7 }],
+    speed: 0.55,
+    walkAnimation: 'Walking_B',
+    activityAnimation: 'Use_Item',
+    stopDuration: 3.6,
+    initialWait: 1.4
+  }, {
+    id: 'maria',
+    npcKey: 'maria',
+    name: { ar: 'ماريا فيشر', en: 'Maria Fischer' },
+    model: 'Ranger',
+    path: [{ x: -6, z: 2 }, { x: 4, z: 2 }, { x: 4, z: 7 }, { x: -6, z: 7 }],
+    speed: 0.9,
+    walkAnimation: 'Walking_A',
+    activityAnimation: 'Interact',
+    stopDuration: 1.8
+  }, {
+    id: 'restaurant-diner',
+    name: { ar: 'زبون', en: 'Diner' },
+    model: 'Mage',
+    path: [{ x: 9, z: 2 }, { x: 10, z: 2 }, { x: 10, z: 5 }, { x: 9, z: 5 }],
+    speed: 0.4,
+    walkAnimation: 'Walking_C',
+    activityAnimation: 'Use_Item',
+    stopDuration: 4,
+    initialWait: 2
+  }, {
+    id: 'restaurant-leaving-guest',
+    name: { ar: 'مغادر', en: 'Leaving guest' },
+    model: 'Barbarian',
+    path: [{ x: 8, z: 8 }, { x: 8, z: 13 }, { x: 3, z: 19 }, { x: -5, z: 25 }],
+    speed: 0.8,
+    walkAnimation: 'Walking_B',
+    leaveAfterRoute: true,
+    initialWait: 5
   }],
   5: [{
     id: 'hanna',
@@ -919,7 +981,50 @@ const WORLD_NPCS = {
     model: 'Barbarian',
     path: [{ x: -3, z: 2 }, { x: 3, z: 2 }, { x: 3, z: 7 }, { x: -3, z: 7 }],
     speed: 0.8,
-    walkAnimation: 'Walking_B'
+    walkAnimation: 'Walking_B',
+    activityAnimation: 'Interact',
+    stopDuration: 2
+  }, {
+    id: 'leon',
+    npcKey: 'leon',
+    name: { ar: 'ليون هارتمان', en: 'Leon Hartmann' },
+    model: 'Rogue',
+    path: [{ x: -7, z: 5 }, { x: -4, z: 5 }, { x: -4, z: 10 }, { x: -7, z: 10 }],
+    speed: 0.55,
+    walkAnimation: 'Walking_C',
+    activityAnimation: 'PickUp',
+    stopDuration: 3.4,
+    initialWait: 1.2
+  }, {
+    id: 'aylin',
+    npcKey: 'aylin',
+    name: { ar: 'أيلين دمير', en: 'Aylin Demir' },
+    model: 'Mage',
+    path: [{ x: 5, z: 10 }, { x: 8, z: 10 }, { x: 8, z: 15 }, { x: 5, z: 15 }],
+    speed: 0.6,
+    walkAnimation: 'Walking_A',
+    activityAnimation: 'PickUp',
+    stopDuration: 3,
+    initialWait: 2.5
+  }, {
+    id: 'supermarket-shopper',
+    name: { ar: 'متسوق', en: 'Shopper' },
+    model: 'Knight',
+    path: [{ x: 10, z: 8 }, { x: 12, z: 8 }, { x: 12, z: 13 }, { x: 10, z: 13 }],
+    speed: 0.5,
+    walkAnimation: 'Walking_B',
+    activityAnimation: 'PickUp',
+    stopDuration: 3.2,
+    initialWait: 3
+  }, {
+    id: 'supermarket-leaving-shopper',
+    name: { ar: 'متسوق مغادر', en: 'Leaving shopper' },
+    model: 'Ranger',
+    path: [{ x: -9, z: 10 }, { x: -9, z: 17 }, { x: -4, z: 25 }, { x: 0, z: 42 }],
+    speed: 0.9,
+    walkAnimation: 'Walking_C',
+    leaveAfterRoute: true,
+    initialWait: 6
   }]
 };
 
@@ -945,13 +1050,22 @@ function applyNpcAnimation(tracks, time, duration) {
   });
 }
 
-function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isPaused }) {
+function NPCCharacter({
+  npc,
+  movementAnimations,
+  idleAnimations,
+  onPosition,
+  playerBody,
+  isPaused,
+  isEngaged
+}) {
   const { scene } = useGLTF(`/Grounds/NPC/${npc.model}.glb`, true);
   const groupRef = React.useRef(null);
   const routeIndex = React.useRef(1);
-  const waitTime = React.useRef(0.5);
+  const waitTime = React.useRef(npc.initialWait ?? 0.5);
   const animationTime = React.useRef(0);
   const animationMode = React.useRef(null);
+  const hasLeft = React.useRef(false);
   const model = React.useMemo(() => scene.clone(true), [scene]);
   const nodes = React.useMemo(() => {
     const lookup = new Map();
@@ -974,6 +1088,10 @@ function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isP
     movementAnimations.find((clip) => clip.name === 'Walking_A');
   const idleClip = idleAnimations.find((clip) => clip.name === 'Idle_A') ||
     idleAnimations.find((clip) => clip.name === 'Idle_B');
+  const activityClip = npc.activityAnimation
+    ? idleAnimations.find((clip) => clip.name === npc.activityAnimation)
+    : null;
+  const interactClip = idleAnimations.find((clip) => clip.name === 'Interact');
   const walkTracks = React.useMemo(
     () => bindNpcAnimation(walkClip, nodes),
     [walkClip, nodes]
@@ -982,13 +1100,21 @@ function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isP
     () => bindNpcAnimation(idleClip, nodes),
     [idleClip, nodes]
   );
+  const activityTracks = React.useMemo(
+    () => bindNpcAnimation(activityClip, nodes),
+    [activityClip, nodes]
+  );
+  const interactTracks = React.useMemo(
+    () => bindNpcAnimation(interactClip, nodes),
+    [interactClip, nodes]
+  );
 
   useFrame((_, delta) => {
     const group = groupRef.current;
-    if (!group) return;
+    if (!group || hasLeft.current) return;
 
     let walking = false;
-    if (!isPaused && npc.path.length > 1) {
+    if (!isPaused && !isEngaged && npc.path.length > 1) {
       if (waitTime.current > 0) {
         waitTime.current = Math.max(0, waitTime.current - delta);
       } else {
@@ -998,8 +1124,14 @@ function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isP
         const distance = Math.hypot(dx, dz);
 
         if (distance < 0.2) {
+          if (npc.leaveAfterRoute && routeIndex.current === npc.path.length - 1) {
+            hasLeft.current = true;
+            group.visible = false;
+            onPosition(npc.id, null, null);
+            return;
+          }
           routeIndex.current = (routeIndex.current + 1) % npc.path.length;
-          waitTime.current = 1.1;
+          waitTime.current = npc.stopDuration ?? 1.1;
         } else {
           const step = Math.min(distance, npc.speed * delta);
           group.position.x += (dx / distance) * step;
@@ -1010,15 +1142,43 @@ function NPCCharacter({ npc, movementAnimations, idleAnimations, onPosition, isP
       }
     }
 
+    if (isEngaged) {
+      const player = playerBody.current && playerBody.current.translation();
+      if (player) {
+        const dx = player.x - group.position.x;
+        const dz = player.z - group.position.z;
+        if (Math.hypot(dx, dz) > 0.01) group.rotation.y = Math.atan2(dx, dz);
+      }
+    }
+
     onPosition(npc.id, group.position.x, group.position.z);
     if (isPaused) return;
-    if (animationMode.current !== walking) {
-      animationMode.current = walking;
+    const mode = isEngaged
+      ? 'interact'
+      : walking
+        ? 'walk'
+        : npc.activityAnimation
+          ? 'activity'
+          : 'idle';
+    if (animationMode.current !== mode) {
+      animationMode.current = mode;
       animationTime.current = 0;
     }
     animationTime.current += delta;
-    const clip = walking ? walkClip : idleClip;
-    const tracks = walking ? walkTracks : idleTracks;
+    const clip = mode === 'walk'
+      ? walkClip
+      : mode === 'interact'
+        ? interactClip
+        : mode === 'activity'
+          ? activityClip
+          : idleClip;
+    const tracks = mode === 'walk'
+      ? walkTracks
+      : mode === 'interact'
+        ? interactTracks
+        : mode === 'activity'
+          ? activityTracks
+          : idleTracks;
     applyNpcAnimation(tracks, animationTime.current, clip && clip.duration);
   });
 
@@ -1043,6 +1203,7 @@ function WorldExplorer({
   const [isLoading, setIsLoading] = React.useState(false);
   const [nearbyPortal, setNearbyPortal] = React.useState(null);
   const [nearbyNpc, setNearbyNpc] = React.useState(null);
+  const [engagedNpcKey, setEngagedNpcKey] = React.useState(null);
   const [npcSpeech, setNpcSpeech] = React.useState(null);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
@@ -1067,6 +1228,10 @@ function WorldExplorer({
   const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
 
   const updateNpcPosition = React.useCallback((id, x, z) => {
+    if (typeof x !== 'number' || typeof z !== 'number') {
+      npcPositions.current.delete(id);
+      return;
+    }
     let position = npcPositions.current.get(id);
     if (!position) {
       position = { x, z };
@@ -1097,6 +1262,16 @@ function WorldExplorer({
   }, [language, level]);
 
   React.useEffect(() => {
+    const location = {};
+    window.GermanWorldLocation = location;
+    return () => {
+      if (window.GermanWorldLocation === location) {
+        delete window.GermanWorldLocation;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
     const onNpcSpeech = (event) => {
       const { npcKey, text } = event.detail || {};
       const target = activeNpcs.find((npc) => npc.npcKey === npcKey);
@@ -1110,6 +1285,7 @@ function WorldExplorer({
     };
     const onChatState = (event) => {
       chatOpen.current = Boolean(event.detail && event.detail.open);
+      setEngagedNpcKey(chatOpen.current ? event.detail.npcKey : null);
       if (interactionPromptElement.current) {
         interactionPromptElement.current.style.display = chatOpen.current ? 'none' : '';
       }
@@ -1231,6 +1407,19 @@ function WorldExplorer({
   useFrame(() => {
     if (!positions || !playerBody.current || isLoading || isPaused) return;
     const player = playerBody.current.translation();
+    const gameLocation = window.GermanWorldLocation;
+    if (gameLocation) {
+      gameLocation.level = level;
+      gameLocation.x = player.x;
+      gameLocation.z = player.z;
+    }
+    if (level === 1 && cityMapPlayerMarker.current) {
+      const mapPosition = cityMapPoint(player.x, player.z);
+      cityMapPlayerMarker.current.setAttribute(
+        'transform',
+        `translate(${mapPosition.x} ${mapPosition.y})`
+      );
+    }
     let match = null;
     let closestNpc = null;
     let closestNpcDistance = 4.5;
@@ -1412,7 +1601,9 @@ function WorldExplorer({
       movementAnimations,
       idleAnimations,
       onPosition: updateNpcPosition,
-      isPaused: isPaused || isLoading
+      playerBody,
+      isPaused: isPaused || isLoading,
+      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey
     })),
   );
 }

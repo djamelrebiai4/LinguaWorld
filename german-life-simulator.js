@@ -1339,7 +1339,8 @@
           body: JSON.stringify({
             npcKey,
             language,
-            messages
+            messages,
+            gameLocation: window.GermanWorldLocation || null
           }),
           signal: requestController.signal
         });

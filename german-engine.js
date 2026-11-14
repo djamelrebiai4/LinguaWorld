@@ -1405,19 +1405,35 @@
   // 18. World Dialogue Trigger in 3D Scenes
   function renderWorldDialogueTrigger() {
     const world = detectWorld();
-    if (!world || !DIALOGUES[world]) return;
+    if (!world) return;
     if (document.getElementById('de-world-dialogue-btn')) return;
 
-    const dlg = DIALOGUES[world];
     const trigger = document.createElement('button');
     trigger.id = 'de-world-dialogue-btn';
     trigger.className = 'de-world-dialogue-trigger';
-    trigger.innerHTML = `
-
-      <span>💬 محادثة: ${dlg.title.split(' ')[0]}</span>
-    `;
+    trigger.type = 'button';
+    const supportLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
+      ? window.GermanEngine.getSupportLanguage()
+      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+    trigger.dir = supportLanguage === 'en' ? 'ltr' : 'rtl';
+    trigger.setAttribute(
+      'aria-label',
+      supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية'
+    );
+    const label = document.createElement('span');
+    label.textContent = supportLanguage === 'en' ? '💬 Talk with an NPC' : '💬 تحدث مع شخصية';
+    trigger.appendChild(label);
     trigger.addEventListener('click', () => {
-      openDialogue(world);
+      const life = window.GermanLife;
+      const npcKey = life && life.NPCS
+        ? Object.keys(life.NPCS).find((key) =>
+          String(life.NPCS[key].world || '').toLowerCase() === world.toLowerCase())
+        : null;
+      if (!life || typeof life.openNPCConversation !== 'function' || !npcKey) {
+        console.error(`NPC conversation is unavailable for world "${world}".`);
+        return;
+      }
+      life.openNPCConversation(npcKey);
     });
     document.body.appendChild(trigger);
   }

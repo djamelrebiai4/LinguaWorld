@@ -8,11 +8,19 @@ const MAX_BODY_BYTES = 32_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_REQUESTS = 20;
 const requestsByClient = new Map();
+const WORLD_BY_LEVEL = {
+  1: 'City',
+  2: 'House',
+  3: 'Classroom',
+  4: 'Restaurant',
+  5: 'Supermarket'
+};
 
 const NPC_PROFILES = {
   sophie: {
     name: 'Sophie Müller',
     role: 'Barista und Studentin',
+    world: 'Restaurant',
     personality: 'herzlich, lebensfroh und kunstbegeistert',
     register: 'Use du and a relaxed, warm tone.',
     topics: 'Kaffee, Rezepte, Reisen und Literatur'
@@ -20,6 +28,7 @@ const NPC_PROFILES = {
   lukas: {
     name: 'Lukas Wagner',
     role: 'Architekturstudent',
+    world: 'Classroom',
     personality: 'ehrgeizig, neugierig und technikbegeistert',
     register: 'Use du and a curious, friendly tone.',
     topics: 'Architektur, Technik, Spiele und Zukunftspläne'
@@ -27,6 +36,7 @@ const NPC_PROFILES = {
   herr_weber: {
     name: 'Herr Heinrich Weber',
     role: 'Nachbar im Ruhestand',
+    world: 'House',
     personality: 'höflich, pünktlich, traditionsbewusst und freundlich',
     register: 'Use Sie and a polite, gentle tone.',
     topics: 'Garten, Ordnung und Geschichte'
@@ -34,6 +44,7 @@ const NPC_PROFILES = {
   hanna: {
     name: 'Hanna Schneider',
     role: 'Filialleiterin im Supermarkt',
+    world: 'Supermarket',
     personality: 'organisiert, effizient und hilfsbereit',
     register: 'Use Sie, as a shop manager speaking with a customer.',
     topics: 'Einkaufen, gesunde Ernährung und Lebensmittel'
@@ -41,11 +52,24 @@ const NPC_PROFILES = {
   max: {
     name: 'Max Becker',
     role: 'Fitnesstrainer',
+    world: 'City',
     personality: 'sportlich, motivierend und energiegeladen',
     register: 'Use du and an upbeat but natural tone.',
     topics: 'Fitness, Ernährung und Motivation'
   }
 };
+
+const GAME_GUIDE = [
+  'This is a German-learning game with five connected areas: City, House, Classroom, Restaurant, and Supermarket.',
+  'Confirmed controls: press F near an NPC to open a conversation; press F near a portal to enter it or return to the city.',
+  'The city map is north-up, shows named markers for the House, School, Restaurant, and Supermarket, and its player marker tracks the current position.',
+  'City coordinates use +x for east and +z for north. The confirmed road segments are x=30 from z=-255 to 335; z=95 from x=-220 to 220; z=-50 from x=-185 to 185; z=-130 from x=-140 to 160; z=170 from x=-215 to 135; z=230 from x=-155 to 145; z=284 from x=-150 to 115; and z=-203 from x=30 to 160.',
+  'The Restaurant portal is at (99,170); the Supermarket is at (83,284); the School is at (-131,281); and the House is at (140,-203).',
+  'From the city arrival point (30,95), routes are: Restaurant, north to z=170 then east to x=99; Supermarket, north to z=284 then east to x=83; School, north to z=284 then west to x=-131; House, south to z=-203 then east to x=140.',
+  "When current coordinates are supplied, use them as the learner's current location and give the next steps along the listed roads. If coordinates are unavailable, never claim to know the learner's exact position; ask which landmark or area they are near and point them to the live city map marker.",
+  'If the learner is inside a different area and asks for a city destination, guide them to that area’s exit portal first, then to the destination marker in the city.',
+  'For unverified game details, say you are unsure instead of inventing routes, places, distances, or controls.'
+].join(' ');
 
 function respond(res, status, payload) {
   return res.status(status).json(payload);
@@ -94,6 +118,30 @@ function validateMessages(messages) {
       && message.content.trim().length > 0
       && message.content.length <= maxLength;
   }) && (messages.length === 0 || messages[messages.length - 1].role === 'user');
+}
+
+function parseGameLocation(location) {
+  if (location === undefined || location === null) return null;
+  if (
+    !location
+    || typeof location !== 'object'
+    || Array.isArray(location)
+    || !Number.isInteger(location.level)
+    || !WORLD_BY_LEVEL[location.level]
+    || typeof location.x !== 'number'
+    || !Number.isFinite(location.x)
+    || Math.abs(location.x) > 500
+    || typeof location.z !== 'number'
+    || !Number.isFinite(location.z)
+    || Math.abs(location.z) > 500
+  ) {
+    return undefined;
+  }
+  return {
+    world: WORLD_BY_LEVEL[location.level],
+    x: Math.round(location.x),
+    z: Math.round(location.z)
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -161,11 +209,22 @@ module.exports = async function handler(req, res) {
   if (!validateMessages(body.messages)) {
     return respond(res, 400, { error: 'The conversation history is invalid or too long.' });
   }
+  const gameLocation = parseGameLocation(body.gameLocation);
+  if (gameLocation === undefined) {
+    return respond(res, 400, { error: 'The in-game location is invalid.' });
+  }
 
   const systemPrompt = [
     `You are ${npc.name}, a ${npc.role} in a German-learning life simulation.`,
+    `Your usual area is ${npc.world}.`,
+    gameLocation
+      ? `Current game state: the learner is in ${gameLocation.world} at x=${gameLocation.x}, z=${gameLocation.z}.`
+      : "The learner's current in-game position is unavailable.",
     `Your personality is ${npc.personality}. ${npc.register} Natural conversation topics: ${npc.topics}.`,
+    GAME_GUIDE,
     'Speak like a real person in Germany, not like a scripted tutor. React to details from the learner and stay consistent with the conversation.',
+    'The learner may ask everyday questions, get to know you, ask for directions, or ask how to do something in the game. Respond naturally to all of these.',
+    'For route questions, give a practical next step in simple German, use only the confirmed map and road information, and ask where the learner is starting if needed.',
     'Avoid generic praise, repeated greetings, unnecessary emojis, and asking a question in every reply.',
     'Help an adult beginner practice everyday German (A1-A2). Keep each German reply to 1-3 concise, natural sentences.',
     'Also provide an accurate, concise Arabic translation of the German reply in the "ar" field.',
