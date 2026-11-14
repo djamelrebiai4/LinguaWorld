@@ -716,6 +716,56 @@ function WorldExplorer({
     : '';
   const npcButtonText = language === 'en' ? 'Talk' : 'تحدث';
 
+  React.useEffect(() => {
+    if (!nearbyNpc && !nearbyPortal) return undefined;
+
+    const prompt = document.createElement('div');
+    prompt.id = 'lw-world-interaction-prompt';
+    prompt.className = 'lw-world-portal-prompt';
+    prompt.setAttribute('role', 'status');
+    prompt.setAttribute('aria-live', 'polite');
+
+    const text = document.createElement('span');
+    text.className = 'lw-world-portal-text';
+    text.textContent = nearbyNpc ? npcText : portalText;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'lw-world-portal-button';
+    const buttonLabel = document.createElement('span');
+    buttonLabel.textContent = nearbyNpc ? npcButtonText : buttonText;
+    const key = document.createElement('kbd');
+    key.textContent = 'F';
+    button.append(buttonLabel, key);
+
+    const stopPropagation = (event) => event.stopPropagation();
+    const activate = () => {
+      if (nearbyNpc) talkToNpc(nearbyNpc);
+      else enterPortal(nearbyPortal);
+    };
+    prompt.addEventListener('pointerdown', stopPropagation);
+    prompt.addEventListener('mousedown', stopPropagation);
+    button.addEventListener('click', activate);
+    prompt.append(text, button);
+    document.body.appendChild(prompt);
+
+    return () => {
+      prompt.removeEventListener('pointerdown', stopPropagation);
+      prompt.removeEventListener('mousedown', stopPropagation);
+      button.removeEventListener('click', activate);
+      prompt.remove();
+    };
+  }, [
+    buttonText,
+    enterPortal,
+    nearbyNpc,
+    nearbyPortal,
+    npcButtonText,
+    npcText,
+    portalText,
+    talkToNpc
+  ]);
+
   return h(React.Fragment, null,
     positions
       ? h(FirstPersonPlayer, {
@@ -735,38 +785,6 @@ function WorldExplorer({
       onPosition: updateNpcPosition,
       isPaused: isPaused || isLoading
     })),
-    nearbyNpc
-      ? h('div', {
-        className: 'lw-world-portal-prompt lw-world-npc-prompt',
-        role: 'status',
-        'aria-live': 'polite',
-        onPointerDown: (event) => event.stopPropagation(),
-        onMouseDown: (event) => event.stopPropagation()
-      },
-      h('span', { className: 'lw-world-portal-text' }, npcText),
-      h('button', {
-        type: 'button',
-        className: 'lw-world-portal-button',
-        onClick: () => talkToNpc(nearbyNpc)
-      }, h('span', null, npcButtonText),
-      h('kbd', null, 'F')))
-      : null,
-    !nearbyNpc && nearbyPortal
-      ? h('div', {
-        className: 'lw-world-portal-prompt',
-        role: 'status',
-        'aria-live': 'polite',
-        onPointerDown: (event) => event.stopPropagation(),
-        onMouseDown: (event) => event.stopPropagation()
-      },
-      h('span', { className: 'lw-world-portal-text' }, portalText),
-      h('button', {
-        type: 'button',
-        className: 'lw-world-portal-button',
-        onClick: () => enterPortal(nearbyPortal)
-      }, h('span', null, buttonText),
-      h('kbd', null, 'F')))
-      : null
   );
 }
 
