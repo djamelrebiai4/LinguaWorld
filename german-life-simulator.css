@@ -1854,8 +1854,8 @@
 .de-dialogue-top.de-ai-dialogue-top {
   position: relative;
   display: flex;
-  min-height: 74px;
-  flex: 0 0 74px;
+  min-height: 68px;
+  flex: 0 0 68px;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
@@ -2111,6 +2111,21 @@
   font-size: 15px;
   font-weight: 650;
   line-height: 1.5;
+}
+
+.de-ai-message-german {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.de-ai-message-german > bdi,
+.de-ai-typewriter-reserve {
+  grid-area: 1 / 1;
+  overflow-wrap: anywhere;
+}
+
+.de-ai-typewriter-reserve {
+  visibility: hidden;
 }
 
 .de-ai-message-translation {

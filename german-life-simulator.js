@@ -1060,7 +1060,7 @@
       row.appendChild(message);
       historyElement.appendChild(row);
       scrollToBottomIfPinned(wasPinned);
-      return { row, germanContent };
+      return { row, germanContent, german };
     }
 
     function appendTypingIndicator() {
@@ -1118,10 +1118,18 @@
         finish: null,
         previousLiveMode: historyElement.getAttribute('aria-live') || 'polite'
       };
+      const reservedText = document.createElement('span');
+      reservedText.className = 'de-ai-typewriter-reserve';
+      reservedText.setAttribute('aria-hidden', 'true');
+      reservedText.dir = message.germanContent.dir;
+      reservedText.lang = message.germanContent.lang;
+      reservedText.textContent = text;
+      message.german.appendChild(reservedText);
       controller.finish = () => {
         if (activeTypewriter !== controller) return;
         window.clearInterval(controller.timer);
         controller.content.textContent = controller.text;
+        reservedText.remove();
         controller.row.classList.remove('is-typewriting');
         controller.row.removeEventListener('click', controller.skipClick);
         historyElement.setAttribute('aria-live', controller.previousLiveMode);
