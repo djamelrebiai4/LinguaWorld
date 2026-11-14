@@ -295,18 +295,29 @@
   // 5. Native German Speech Synthesis (TTS)
   function speakGerman(text) {
     if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const spokenText = String(text ?? '').replace(/\s+/g, ' ').trim();
+    if (!spokenText) return;
+
+    const speech = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     utterance.lang = 'de-DE';
-    utterance.rate = 0.88; // Slightly slower for language learners
+    utterance.rate = 0.9;
     utterance.pitch = 1.0;
+    utterance.volume = 0.9;
 
-    // Choose German voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const deVoice = voices.find(v => v.lang.startsWith('de'));
-    if (deVoice) utterance.voice = deVoice;
+    const voices = speech.getVoices();
+    const germanVoice = voices.find((voice) => voice.lang.toLowerCase() === 'de-de')
+      || voices.find((voice) => /^de(?:-|$)/i.test(voice.lang));
+    if (germanVoice) utterance.voice = germanVoice;
 
-    window.speechSynthesis.speak(utterance);
+    utterance.onerror = (event) => {
+      if (event.error !== 'canceled' && event.error !== 'interrupted') {
+        console.error('German speech synthesis failed:', event.error);
+      }
+    };
+
+    speech.cancel();
+    speech.speak(utterance);
   }
 
   // Pre-load voices

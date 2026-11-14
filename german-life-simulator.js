@@ -101,11 +101,28 @@
     if (window.GermanEngine && window.GermanEngine.speakGerman) {
       window.GermanEngine.speakGerman(text);
     } else if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const spokenText = String(text ?? '').replace(/\s+/g, ' ').trim();
+      if (!spokenText) return;
+
+      const speech = window.speechSynthesis;
+      const u = new SpeechSynthesisUtterance(spokenText);
       u.lang = 'de-DE';
-      u.rate = 0.88;
-      window.speechSynthesis.speak(u);
+      u.rate = 0.9;
+      u.pitch = 1;
+      u.volume = 0.9;
+
+      const voices = speech.getVoices();
+      const germanVoice = voices.find((voice) => voice.lang.toLowerCase() === 'de-de')
+        || voices.find((voice) => /^de(?:-|$)/i.test(voice.lang));
+      if (germanVoice) u.voice = germanVoice;
+      u.onerror = (event) => {
+        if (event.error !== 'canceled' && event.error !== 'interrupted') {
+          console.error('German speech synthesis failed:', event.error);
+        }
+      };
+
+      speech.cancel();
+      speech.speak(u);
     }
   }
 
