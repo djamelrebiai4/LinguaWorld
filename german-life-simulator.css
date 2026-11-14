@@ -2362,3 +2362,149 @@
     scroll-behavior: auto;
   }
 }
+
+.de-ai-header-actions {
+  gap: 8px;
+}
+
+.de-ai-privacy-info {
+  margin: 0;
+}
+
+.de-ai-privacy-info summary {
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #b7b8be;
+  font-size: 13px;
+}
+
+.de-ai-privacy-info summary:hover,
+.de-npc-chat-overlay .de-modal-close:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.de-ai-character-meta {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.de-ai-character-role {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.de-ai-mood {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.de-ai-mood bdi {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.de-ai-friendship {
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.de-ai-friendship-label {
+  display: none;
+}
+
+.de-ai-friendship-track {
+  height: 4px;
+  margin: 0;
+  border-radius: 0;
+}
+
+.de-ai-translation-toggle[aria-pressed="true"] {
+  border-color: rgba(240, 146, 79, 0.2);
+  background: rgba(240, 146, 79, 0.16);
+  color: #f0924f;
+}
+
+.de-ai-translation-toggle[aria-pressed="false"]::before {
+  position: absolute;
+  width: 22px;
+  height: 1px;
+  transform: rotate(-45deg);
+  border-radius: 1px;
+  background: currentColor;
+  content: "";
+}
+
+.de-ai-chat-history::before {
+  position: sticky;
+  z-index: 1;
+  top: -8px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-bottom: -16px;
+  background: linear-gradient(to bottom, var(--npc-chat-panel), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.de-ai-message-row.user .de-ai-message-avatar {
+  display: none;
+}
+
+.de-ai-message.user {
+  border-color: rgba(240, 146, 79, 0.65);
+  background: #f0924f;
+}
+
+.de-ai-message.user .de-ai-message-speaker {
+  color: #66391d;
+}
+
+.de-ai-message.user .de-ai-message-time,
+.de-ai-message.user .de-ai-message-german,
+.de-ai-message.user .de-ai-message-translation {
+  color: #2b211b;
+}
+
+.de-ai-message.user .de-ai-message-translation {
+  border-color: rgba(43, 33, 27, 0.2);
+}
+
+.de-ai-composer {
+  gap: 5px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(9, 10, 12, 0.52);
+}
+
+.de-ai-composer:focus-within {
+  border-color: rgba(240, 146, 79, 0.7);
+  box-shadow: 0 0 0 2px rgba(240, 146, 79, 0.14);
+}
+
+.de-ai-chat-form textarea {
+  min-height: 44px;
+  max-height: 84px;
+  border: 0;
+  border-radius: 999px;
+}
+
+.de-ai-mic-button,
+.de-ai-send-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex-basis: 44px;
+}

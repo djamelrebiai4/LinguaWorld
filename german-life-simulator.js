@@ -831,7 +831,7 @@
     const showTranslations = localStorage.getItem('lw_npc_translations') !== 'false';
     const friendshipLabel = getFriendshipStatus(npc.friendship).split(' (')[0];
     const moodTone = /gestresst|nachdenklich/i.test(npc.mood) ? 'is-warm' : 'is-positive';
-    const suggestedResponses = [...npc.dialogue.responses];
+    let suggestedResponses = [...npc.dialogue.responses];
     if (suggestedResponses.length < 3) {
       suggestedResponses.push({
         de: 'Kannst du mir ein neues deutsches Wort beibringen?',
@@ -852,7 +852,7 @@
               <bdi class="de-dialogue-speaker-name" id="de-npc-chat-title" lang="de" dir="auto">${npc.name}</bdi>
               <div class="de-ai-character-meta">
                 <bdi class="de-ai-character-role" lang="de" dir="ltr">${npc.role.split('(')[0].trim()}</bdi>
-                <span class="de-ai-mood ${moodTone}">
+                <span class="de-ai-mood ${moodTone}" title="${npc.mood}" aria-label="${npc.mood}">
                   <i class="de-ai-mood-dot" aria-hidden="true"></i>
                   <bdi lang="de" dir="ltr">${npc.mood}</bdi>
                 </span>
@@ -866,11 +866,18 @@
               <span aria-hidden="true">文A</span>
               <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
             </button>
+            <details class="de-ai-privacy-info">
+              <summary aria-label="${copy.privacyBefore} Groq" title="${copy.privacyBefore} Groq">i</summary>
+              <div class="de-ai-privacy-note" dir="auto">
+                <span>${copy.privacyBefore}</span> <bdi dir="ltr">Groq</bdi> <span>${copy.privacyAfter}</span>
+              </div>
+            </details>
             <button class="de-modal-close" id="de-npc-chat-close"
               aria-label="${copy.close}" title="${copy.close}">&times;</button>
           </div>
           <div class="de-ai-friendship" id="de-ai-friendship"
-            title="${copy.friendship}: ${npc.friendship}/100">
+            title="${friendshipLabel} · ${npc.friendship}/100"
+            aria-label="${friendshipLabel} · ${npc.friendship}/100">
             <div class="de-ai-friendship-label">
               <span>${copy.friendship}</span>
               <bdi id="de-ai-friendship-status" lang="de" dir="ltr">${friendshipLabel}</bdi>
@@ -893,8 +900,8 @@
               ${suggestedResponses.slice(0, 3).map((response, index) => `
                 <button class="de-ai-suggestion" type="button" data-response-index="${index}">
                   <span class="de-ai-suggestion-de" lang="de" dir="ltr"><bdi>${response.de}</bdi></span>
-                  <span class="de-ai-suggestion-translation" lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
-                    ${language === 'ar' ? `<bdi>${response.ar}</bdi>` : ''}
+                  <span class="de-ai-suggestion-translation" lang="ar" dir="rtl">
+                    <bdi>${response.ar}</bdi>
                   </span>
                   <span class="de-ai-suggestion-shortcut" aria-hidden="true">${index + 1}</span>
                 </button>
@@ -931,12 +938,6 @@
                   <bdi dir="ltr"><kbd>${copy.shiftEnterKey}</kbd></bdi>
                   <span dir="auto">${copy.newlineHint}</span>
                 </span>
-                <details class="de-ai-privacy-info">
-                  <summary aria-label="${copy.privacyBefore} Groq" title="${copy.privacyBefore} Groq">i</summary>
-                  <div class="de-ai-privacy-note" dir="auto">
-                    <span>${copy.privacyBefore}</span> <bdi dir="ltr">Groq</bdi> <span>${copy.privacyAfter}</span>
-                  </div>
-                </details>
               </div>
             </form>
           </div>
@@ -990,11 +991,6 @@
       if (lastMessageRole === role) row.classList.add('continued');
       lastMessageRole = role;
 
-      const avatar = document.createElement('div');
-      avatar.className = `de-ai-message-avatar ${role}`;
-      avatar.setAttribute('aria-hidden', 'true');
-      avatar.textContent = role === 'assistant' ? npc.avatar : '🙂';
-
       const message = document.createElement('article');
       message.className = `de-ai-message ${role}`;
 
@@ -1016,7 +1012,14 @@
         hour: '2-digit',
         minute: '2-digit'
       });
-      meta.append(avatar, speaker, time);
+      if (role === 'assistant') {
+        const avatar = document.createElement('div');
+        avatar.className = 'de-ai-message-avatar assistant';
+        avatar.setAttribute('aria-hidden', 'true');
+        avatar.textContent = npc.avatar;
+        meta.append(avatar);
+      }
+      meta.append(speaker, time);
       message.appendChild(meta);
 
       const german = document.createElement('div');
@@ -1033,8 +1036,8 @@
       if (translatedText) {
         const translated = document.createElement('div');
         translated.className = 'de-ai-message-translation';
-        translated.lang = language;
-        translated.dir = language === 'ar' ? 'rtl' : 'ltr';
+        translated.lang = options.translationLanguage || language;
+        translated.dir = translated.lang === 'ar' ? 'rtl' : 'ltr';
         const translatedContent = document.createElement('bdi');
         translatedContent.dir = translated.dir;
         translatedContent.textContent = translatedText;
@@ -1061,6 +1064,57 @@
       historyElement.appendChild(row);
       scrollToBottomIfPinned(wasPinned);
       return { row, germanContent, german };
+    }
+
+    function renderSuggestions(options) {
+      const validOptions = Array.isArray(options)
+        ? options.filter((option) => (
+          option
+          && typeof option.de === 'string'
+          && typeof option.ar === 'string'
+          && option.de.trim()
+          && option.ar.trim()
+        )).slice(0, 3)
+        : [];
+      suggestedResponses = validOptions.length ? validOptions : [...npc.dialogue.responses];
+      if (suggestedResponses.length < 2) {
+        suggestedResponses.push({
+          de: 'Kannst du mir ein neues deutsches Wort beibringen?',
+          ar: 'هل يمكنك تعليمي كلمة ألمانية جديدة؟',
+          friendshipBonus: 10
+        });
+      }
+
+      const title = document.createElement('div');
+      title.className = 'de-ai-suggestions-title';
+      title.textContent = copy.suggestions;
+      suggestionsElement.replaceChildren(title);
+      suggestedResponses.slice(0, 3).forEach((response, index) => {
+        const button = document.createElement('button');
+        button.className = 'de-ai-suggestion';
+        button.type = 'button';
+        button.dataset.responseIndex = index.toString();
+
+        const german = document.createElement('span');
+        german.className = 'de-ai-suggestion-de';
+        german.lang = 'de';
+        german.dir = 'ltr';
+        german.textContent = response.de;
+
+        const arabic = document.createElement('span');
+        arabic.className = 'de-ai-suggestion-translation';
+        arabic.lang = 'ar';
+        arabic.dir = 'rtl';
+        arabic.textContent = response.ar;
+
+        const shortcut = document.createElement('span');
+        shortcut.className = 'de-ai-suggestion-shortcut';
+        shortcut.setAttribute('aria-hidden', 'true');
+        shortcut.textContent = (index + 1).toString();
+        button.append(german, arabic, shortcut);
+        suggestionsElement.appendChild(button);
+      });
+      suggestionsElement.hidden = false;
     }
 
     function appendTypingIndicator() {
@@ -1180,7 +1234,8 @@
       friendshipPoints.textContent = `${npc.friendship}/100`;
       friendshipProgress.setAttribute('aria-valuenow', npc.friendship.toString());
       friendshipFill.style.width = `${Math.max(0, Math.min(100, npc.friendship))}%`;
-      friendshipElement.title = `${copy.friendship}: ${npc.friendship}/100`;
+      friendshipElement.title = `${status} · ${npc.friendship}/100`;
+      friendshipElement.setAttribute('aria-label', friendshipElement.title);
     }
 
     function showXpReward(amount) {
@@ -1279,26 +1334,28 @@
               : copy.connectionError;
           throw new Error(errorMessage);
         }
-        if (
-          !result.reply
-          || typeof result.reply.de !== 'string'
-          || typeof result.reply.translation !== 'string'
-        ) {
+        const reply = typeof result?.reply === 'string'
+          ? { de: result.reply, ar: '', options: [] }
+          : result?.reply;
+        if (!reply || typeof reply.de !== 'string' || !reply.de.trim()) {
           throw new Error(copy.connectionError);
         }
+        const germanReply = reply.de.trim();
+        const arabicReply = typeof reply.ar === 'string' ? reply.ar.trim() : '';
 
         if (userText || messages.length === 0) {
-          messages.push({ role: 'assistant', content: result.reply.de });
+          messages.push({ role: 'assistant', content: germanReply });
         }
         typingIndicator.remove();
         const assistantMessage = appendMessage(
           'assistant',
-          result.reply.de,
-          result.reply.translation,
+          germanReply,
+          arabicReply,
           '',
-          { typewriter: true }
+          { typewriter: true, translationLanguage: 'ar' }
         );
-        typewriteMessage(assistantMessage, result.reply.de);
+        typewriteMessage(assistantMessage, germanReply);
+        renderSuggestions(reply.options);
         statusElement.textContent = '';
         statusElement.classList.remove('is-error');
         if (input.value.trim() === userText) {
@@ -1325,6 +1382,7 @@
             messages.pop();
             turns -= 1;
             lastMessageRole = messages.length ? messages[messages.length - 1].role : null;
+            suggestionsElement.hidden = false;
           }
           statusElement.textContent = error.name === 'TypeError'
             ? copy.connectionError
@@ -1370,14 +1428,14 @@
       translationToggle.lastElementChild.textContent = label;
     });
 
-    overlay.querySelectorAll('.de-ai-suggestion').forEach((button) => {
-      button.addEventListener('click', () => {
-        const index = Number(button.getAttribute('data-response-index'));
-        const response = suggestedResponses[index];
-        if (response) {
-          sendMessage(response.de, language === 'ar' ? response.ar : '', response.friendshipBonus);
-        }
-      });
+    suggestionsElement.addEventListener('click', (event) => {
+      const button = event.target.closest('.de-ai-suggestion');
+      if (!button || !suggestionsElement.contains(button)) return;
+      const index = Number(button.getAttribute('data-response-index'));
+      const response = suggestedResponses[index];
+      if (response) {
+        sendMessage(response.de, language === 'ar' ? response.ar : '', response.friendshipBonus);
+      }
     });
 
     function onGlobalKeyDown(event) {
