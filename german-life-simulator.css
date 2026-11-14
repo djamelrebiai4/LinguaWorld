@@ -12,8 +12,10 @@
 /* Life Top Navigation HUD */
 .de-life-hud {
   position: fixed;
-  top: 70px;
-  right: 18px;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
   display: flex;
   align-items: center;
   gap: 10px;

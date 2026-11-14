@@ -289,14 +289,14 @@
         </div>
         <span style="font-size:12px; font-weight:800; color:#10b981;">+${quest.rewardXP} XP</span>
       </div>
-      <div class="de-quest-ar">${quest.title_ar}</div>
+      <div class="de-quest-ar de-ar">${quest.title_ar}</div>
       <div class="de-quest-progress-bar">
         <div class="de-quest-progress-fill" id="de-quest-bar" style="width: ${progressPercent}%;"></div>
       </div>
       <div class="de-quest-list" id="de-quest-tasks">
         ${quest.tasks.map(t => `
           <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-            <span>${t.completed ? '✅' : '⚪'} ${t.de} (${t.ar})</span>
+            <span>${t.completed ? '✅' : '⚪'} ${t.de} <span class="de-ar">(${t.ar})</span></span>
             <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
               ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
             </span>
@@ -348,7 +348,7 @@
 
     tasksEl.innerHTML = quest.tasks.map(t => `
       <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-        <span>${t.completed ? '✅' : '⚪'} ${t.de} (${t.ar})</span>
+        <span>${t.completed ? '✅' : '⚪'} ${t.de} <span class="de-ar">(${t.ar})</span></span>
         <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
           ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
         </span>
@@ -1008,8 +1008,8 @@
     trigger.id = 'de-world-dialogue-btn';
     trigger.className = 'de-world-dialogue-trigger';
     trigger.innerHTML = `
-      <span>${dlg.avatar}</span>
-      <span>محادثة تفاعلية: ${dlg.title.split(' ')[0]}</span>
+      
+      <span>💬 محادثة: ${dlg.title.split(' ')[0]}</span>
     `;
     trigger.addEventListener('click', () => {
       openDialogue(world);
@@ -1017,10 +1017,22 @@
     document.body.appendChild(trigger);
   }
 
+  
+  // 19. Render 3D Crosshair
+  function renderCrosshair() {
+    if (detectWorld() && !document.getElementById('de-3d-crosshair')) {
+      const ch = document.createElement('div');
+      ch.id = 'de-3d-crosshair';
+      ch.className = 'de-crosshair';
+      document.body.appendChild(ch);
+    }
+  }
+
   // 16. Initialize everything on load
   function init() {
     renderHUD();
     renderQuestWidget();
+    renderCrosshair();
     renderWorldDialogueTrigger();
     setupObjectListeners();
     console.log('✅ German Learning Engine (Deutsche Lern-Engine) active!');

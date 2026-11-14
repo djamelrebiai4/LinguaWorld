@@ -395,7 +395,7 @@
     btn.className = 'de-world-npc-beacon';
     btn.innerHTML = `
       <span>${npc.avatar}</span>
-      <span>معك هنا: ${npc.name.split(' ')[0]} (${npc.mood.split(' ')[1] || '😊'})</span>
+      <span>${npc.avatar} ${npc.name.split(' ')[0]} (${npc.mood.split(' ')[1] || '😊'})</span>
     `;
     btn.addEventListener('click', () => {
       openNPCConversation(npcKey);
