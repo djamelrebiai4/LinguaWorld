@@ -2813,6 +2813,69 @@
   transform: none;
 }
 
+.de-friend-meeting {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  color: #475569;
+  font-size: 12px;
+}
+
+.de-friend-meeting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.de-meeting-period,
+.de-meeting-schedule-btn {
+  min-height: 40px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.de-meeting-period {
+  min-width: 130px;
+  flex: 1 1 130px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #1f2937;
+}
+
+.de-meeting-schedule-btn {
+  flex: 1 1 120px;
+  padding: 6px 12px;
+  background: #f0924f;
+  color: #12211f;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.de-meeting-schedule-btn:hover {
+  filter: brightness(1.05);
+}
+
+.de-meeting-period:focus-visible,
+.de-meeting-schedule-btn:focus-visible {
+  outline: 3px solid #f0924f;
+  outline-offset: 2px;
+}
+
+.de-meeting-status,
+.de-friendship-unlock {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.de-friendship-unlock {
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
 .de-ai-translation-toggle {
   width: 34px;
   min-width: 34px;

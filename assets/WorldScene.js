@@ -1107,7 +1107,9 @@ function NPCCharacter({
   onPosition,
   playerBody,
   isPaused,
-  isEngaged
+  isEngaged,
+  isApproaching,
+  isWaitingForInteraction
 }) {
   const { scene } = useGLTF(`/Grounds/NPC/${npc.model}.glb`, true);
   const groupRef = React.useRef(null);
@@ -1164,7 +1166,21 @@ function NPCCharacter({
     if (!group || hasLeft.current) return;
 
     let walking = false;
-    if (!isPaused && !isEngaged && npc.path.length > 1) {
+    if (!isPaused && !isEngaged && isApproaching) {
+      const player = playerBody.current && playerBody.current.translation();
+      if (player) {
+        const dx = player.x - group.position.x;
+        const dz = player.z - group.position.z;
+        const distance = Math.hypot(dx, dz);
+        group.rotation.y = Math.atan2(dx, dz);
+        if (distance > 3.2) {
+          const step = Math.min(distance - 3.2, npc.speed * delta);
+          group.position.x += (dx / distance) * step;
+          group.position.z += (dz / distance) * step;
+          walking = true;
+        }
+      }
+    } else if (!isPaused && !isEngaged && !isWaitingForInteraction && npc.path.length > 1) {
       if (waitTime.current > 0) {
         waitTime.current = Math.max(0, waitTime.current - delta);
       } else {
@@ -1192,7 +1208,7 @@ function NPCCharacter({
       }
     }
 
-    if (isEngaged) {
+    if (isEngaged || isWaitingForInteraction) {
       const player = playerBody.current && playerBody.current.translation();
       if (player) {
         const dx = player.x - group.position.x;
@@ -1205,6 +1221,8 @@ function NPCCharacter({
     if (isPaused) return;
     const mode = isEngaged
       ? 'interact'
+      : isWaitingForInteraction && !walking
+        ? 'idle'
       : walking
         ? 'walk'
         : npc.activityAnimation
@@ -1254,12 +1272,17 @@ function WorldExplorer({
   const [nearbyPortal, setNearbyPortal] = React.useState(null);
   const [nearbyNpc, setNearbyNpc] = React.useState(null);
   const [engagedNpcKey, setEngagedNpcKey] = React.useState(null);
+  const [approachingNpcId, setApproachingNpcId] = React.useState(null);
+  const [invitingNpcId, setInvitingNpcId] = React.useState(null);
+  const [meetingNpcId, setMeetingNpcId] = React.useState(null);
   const [npcSpeech, setNpcSpeech] = React.useState(null);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
   const currentPortal = React.useRef(null);
   const currentNpc = React.useRef(null);
   const npcPositions = React.useRef(new Map());
+  const npcApproachCooldowns = React.useRef(new Map());
+  const dismissedNpcId = React.useRef(null);
   const speechBubbleElement = React.useRef(null);
   const interactionPromptElement = React.useRef(null);
   const interactionPromptNpcId = React.useRef(null);
@@ -1352,6 +1375,16 @@ function WorldExplorer({
     const onChatState = (event) => {
       chatOpen.current = Boolean(event.detail && event.detail.open);
       setEngagedNpcKey(chatOpen.current ? event.detail.npcKey : null);
+      if (!chatOpen.current && event.detail?.npcKey) {
+        const npc = activeNpcs.find((entry) => entry.npcKey === event.detail.npcKey);
+        if (npc) {
+          npcApproachCooldowns.current.set(npc.id, Date.now() + 60_000);
+          dismissedNpcId.current = npc.id;
+        }
+      }
+      setApproachingNpcId(null);
+      setInvitingNpcId(null);
+      setMeetingNpcId(null);
       if (interactionPromptElement.current) {
         interactionPromptElement.current.style.display = chatOpen.current ? 'none' : '';
       }
@@ -1365,6 +1398,20 @@ function WorldExplorer({
       window.removeEventListener('german-npc-speech', onNpcSpeech);
       window.removeEventListener('german-npc-chat-state', onChatState);
     };
+  }, [activeNpcs]);
+
+  React.useEffect(() => {
+    const updateDueMeeting = () => {
+      if (chatOpen.current) return;
+      const life = window.GermanLife;
+      const dueNpc = typeof life?.getDueMeeting === 'function'
+        ? activeNpcs.find((npc) => npc.npcKey && life.getDueMeeting(npc.npcKey))
+        : null;
+      setMeetingNpcId(dueNpc ? dueNpc.id : null);
+    };
+    updateDueMeeting();
+    const interval = window.setInterval(updateDueMeeting, 2000);
+    return () => window.clearInterval(interval);
   }, [activeNpcs]);
 
   React.useEffect(() => {
@@ -1489,6 +1536,9 @@ function WorldExplorer({
     let match = null;
     let closestNpc = null;
     let closestNpcDistance = 4.5;
+    let approachCandidate = null;
+    let approachCandidateDistance = Infinity;
+    let approachCandidateIsMeeting = false;
 
     activeNpcs.forEach((npc) => {
       if (!npc.npcKey) return;
@@ -1499,7 +1549,64 @@ function WorldExplorer({
         closestNpc = npc;
         closestNpcDistance = distance;
       }
+      const isMeeting = npc.id === meetingNpcId;
+      const cooldownUntil = npcApproachCooldowns.current.get(npc.id) || 0;
+      if (!isMeeting && cooldownUntil > Date.now()) return;
+      const approachRange = isMeeting ? 18 : 12;
+      if (distance >= 4.5 && distance < approachRange) {
+        const preferred = isMeeting && !approachCandidateIsMeeting;
+        const samePriorityAndCloser = isMeeting === approachCandidateIsMeeting
+          && distance < approachCandidateDistance;
+        if (preferred || samePriorityAndCloser) {
+          approachCandidate = npc;
+          approachCandidateDistance = distance;
+          approachCandidateIsMeeting = isMeeting;
+        }
+      }
     });
+
+    if (dismissedNpcId.current) {
+      const dismissedPosition = npcPositions.current.get(dismissedNpcId.current);
+      if (!dismissedPosition || Math.hypot(
+        player.x - dismissedPosition.x,
+        player.z - dismissedPosition.z
+      ) >= 4.5) {
+        dismissedNpcId.current = null;
+      } else if (closestNpc?.id === dismissedNpcId.current) {
+        closestNpc = null;
+        closestNpcDistance = 4.5;
+      }
+    }
+
+    if (invitingNpcId) {
+      const invitedPosition = npcPositions.current.get(invitingNpcId);
+      if (!invitedPosition || Math.hypot(
+        player.x - invitedPosition.x,
+        player.z - invitedPosition.z
+      ) > 18) {
+        npcApproachCooldowns.current.set(invitingNpcId, Date.now() + 60_000);
+        setInvitingNpcId(null);
+        setApproachingNpcId(null);
+      }
+    } else if (!chatOpen.current && approachCandidate) {
+      setInvitingNpcId(approachCandidate.id);
+      setApproachingNpcId(approachCandidate.id);
+    }
+
+    if (invitingNpcId) {
+      const invitedNpc = activeNpcs.find((npc) => npc.id === invitingNpcId);
+      const invitedPosition = npcPositions.current.get(invitingNpcId);
+      if (invitedNpc && invitedPosition && Math.hypot(
+        player.x - invitedPosition.x,
+        player.z - invitedPosition.z
+      ) < closestNpcDistance) {
+        closestNpc = invitedNpc;
+        closestNpcDistance = Math.hypot(
+          player.x - invitedPosition.x,
+          player.z - invitedPosition.z
+        );
+      }
+    }
 
     if (!closestNpc && level === 1) {
       match = CITY_PORTALS.find((portal) => {
@@ -1546,13 +1653,17 @@ function WorldExplorer({
 
   const talkToNpc = React.useCallback((npc) => {
     if (!npc || !npc.npcKey) return;
-    const openConversation = window.GermanLife && window.GermanLife.openNPCConversation;
+    const life = window.GermanLife;
+    const openConversation = life && life.openNPCConversation;
     if (typeof openConversation !== 'function') {
       console.error(`NPC conversation is unavailable for "${npc.npcKey}".`);
       return;
     }
+    if (typeof life.completeNPCMeeting === 'function') {
+      life.completeNPCMeeting(npc.npcKey);
+    }
     if (document.pointerLockElement) document.exitPointerLock();
-    openConversation(npc.npcKey);
+    openConversation(npc.npcKey, { initiatedByNpc: true });
   }, []);
 
   React.useEffect(() => {
@@ -1582,12 +1693,19 @@ function WorldExplorer({
         : `ادخل إلى ${nearbyPortal.title[language]}`
     : '';
   const buttonText = language === 'en' ? 'Enter' : 'دخول';
+  const isMeetingPrompt = Boolean(nearbyNpc && meetingNpcId === nearbyNpc.id);
   const npcText = nearbyNpc
-    ? language === 'en'
-      ? `Talk with ${nearbyNpc.name.en}`
-      : `تحدث مع ${nearbyNpc.name.ar}`
+    ? isMeetingPrompt
+      ? language === 'en'
+        ? `Meeting with ${nearbyNpc.name.en}`
+        : `موعدك مع ${nearbyNpc.name.ar}`
+      : language === 'en'
+        ? `${nearbyNpc.name.en} has a question for you`
+        : `${nearbyNpc.name.ar} يريد أن يسألك شيئًا`
     : '';
-  const npcButtonText = language === 'en' ? 'Talk' : 'تحدث';
+  const npcButtonText = isMeetingPrompt
+    ? language === 'en' ? 'Meet' : 'لقاء'
+    : language === 'en' ? 'Talk' : 'تحدث';
 
   React.useEffect(() => {
     if (!nearbyNpc && !nearbyPortal) return undefined;
@@ -1669,7 +1787,9 @@ function WorldExplorer({
       onPosition: updateNpcPosition,
       playerBody,
       isPaused: isPaused || isLoading,
-      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey
+      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey,
+      isApproaching: npc.id === approachingNpcId,
+      isWaitingForInteraction: npc.id === invitingNpcId
     })),
   );
 }

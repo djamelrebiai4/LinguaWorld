@@ -15,19 +15,75 @@
       .trim();
   }
 
+  const DAY_PERIODS = [
+    { id: 'morning', value: 'Morgen 🌅', label: { ar: 'الصباح', en: 'Morning' } },
+    { id: 'afternoon', value: 'Nachmittag ☀️', label: { ar: 'بعد الظهر', en: 'Afternoon' } },
+    { id: 'evening', value: 'Abend 🌆', label: { ar: 'المساء', en: 'Evening' } },
+    { id: 'night', value: 'Nacht 🌙', label: { ar: 'الليل', en: 'Night' } }
+  ];
+  const DAY_PERIOD_DURATION_MS = 5 * 60 * 1000;
+  const DAY_PERIOD_CYCLE_MS = DAY_PERIOD_DURATION_MS * DAY_PERIODS.length;
+  const DAY_CYCLE_START_KEY = 'de_life_day_cycle_start';
+  const savedTimeOfDay = localStorage.getItem('de_life_time') || 'Nachmittag ☀️';
+  const savedTimePeriodIndex = DAY_PERIODS.findIndex((period) =>
+    displayTimeOfDay(period.value) === displayTimeOfDay(savedTimeOfDay)
+  );
+  const savedPeriodIndex = savedTimePeriodIndex >= 0 ? savedTimePeriodIndex : 1;
+  let dayCycleStartedAt = Number(localStorage.getItem(DAY_CYCLE_START_KEY));
+  if (!Number.isFinite(dayCycleStartedAt) || dayCycleStartedAt <= 0 || dayCycleStartedAt > Date.now()) {
+    dayCycleStartedAt = Date.now() - savedPeriodIndex * DAY_PERIOD_DURATION_MS;
+    localStorage.setItem(DAY_CYCLE_START_KEY, String(dayCycleStartedAt));
+  }
+
+  function getCurrentDayPeriod(now = Date.now()) {
+    const elapsed = Math.max(0, now - dayCycleStartedAt);
+    return DAY_PERIODS[Math.floor(elapsed / DAY_PERIOD_DURATION_MS) % DAY_PERIODS.length];
+  }
+
+  function getNextMeetingSlot(periodId, now = Date.now()) {
+    const periodIndex = DAY_PERIODS.findIndex((period) => period.id === periodId);
+    if (periodIndex < 0) return null;
+    const cycleIndex = Math.floor((now - dayCycleStartedAt) / DAY_PERIOD_CYCLE_MS);
+    let dueAt = dayCycleStartedAt
+      + cycleIndex * DAY_PERIOD_CYCLE_MS
+      + periodIndex * DAY_PERIOD_DURATION_MS;
+    if (dueAt <= now) dueAt += DAY_PERIOD_CYCLE_MS;
+    return { dueAt };
+  }
+
+  function loadMeetings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('de_life_meetings') || '[]');
+      if (!Array.isArray(saved)) throw new TypeError('Saved meetings must be an array.');
+      return saved.filter((meeting) => (
+        meeting
+        && typeof meeting.npcKey === 'string'
+        && DAY_PERIODS.some((period) => period.id === meeting.periodId)
+        && Number.isFinite(meeting.dueAt)
+        && ['scheduled', 'attended'].includes(meeting.status)
+      )).slice(-40);
+    } catch (error) {
+      console.warn('Could not read saved NPC meetings.', error);
+      return [];
+    }
+  }
+
   // 1. Life State & Persistence
   const LifeState = {
     money: parseInt(localStorage.getItem('de_life_money') || '350', 10),
     energy: parseInt(localStorage.getItem('de_life_energy') || '100', 10),
-    timeOfDay: localStorage.getItem('de_life_time') || 'Nachmittag ☀️',
+    timeOfDay: getCurrentDayPeriod().value,
+    meetings: loadMeetings(),
     properties: JSON.parse(localStorage.getItem('de_life_properties') || '[]'),
     inventory: JSON.parse(localStorage.getItem('de_life_inventory') || '["Kaffee ☕", "Buch 📖"]'),
     activeNpcKey: null,
 
     save() {
+      this.timeOfDay = getCurrentDayPeriod().value;
       localStorage.setItem('de_life_money', this.money.toString());
       localStorage.setItem('de_life_energy', this.energy.toString());
       localStorage.setItem('de_life_time', this.timeOfDay);
+      localStorage.setItem('de_life_meetings', JSON.stringify(this.meetings));
       localStorage.setItem('de_life_properties', JSON.stringify(this.properties));
       localStorage.setItem('de_life_inventory', JSON.stringify(this.inventory));
       this.updateHUD();
@@ -77,6 +133,60 @@
       if (timeEl) timeEl.textContent = displayTimeOfDay(this.timeOfDay);
     }
   };
+
+  function syncDayPeriod() {
+    const period = getCurrentDayPeriod();
+    if (LifeState.timeOfDay === period.value) return;
+    LifeState.timeOfDay = period.value;
+    localStorage.setItem('de_life_time', LifeState.timeOfDay);
+    LifeState.updateHUD();
+    window.dispatchEvent(new CustomEvent('german-life-time-change', {
+      detail: { periodId: period.id, timeOfDay: period.value }
+    }));
+  }
+
+  function getScheduledMeeting(npcKey) {
+    return LifeState.meetings.find((entry) =>
+      entry.npcKey === npcKey && entry.status === 'scheduled'
+    ) || null;
+  }
+
+  function getDueMeeting(npcKey) {
+    const meeting = getScheduledMeeting(npcKey);
+    if (!meeting) return null;
+    return Date.now() >= meeting.dueAt ? meeting : null;
+  }
+
+  function scheduleNPCMeeting(npcKey, periodId) {
+    const npc = NPCS[npcKey];
+    const slot = getNextMeetingSlot(periodId);
+    if (!npc || npc.friendship < 60 || !slot) return null;
+    const meeting = {
+      npcKey,
+      periodId,
+      ...slot,
+      status: 'scheduled'
+    };
+    LifeState.meetings = LifeState.meetings.filter((entry) =>
+      entry.npcKey !== npcKey || entry.status !== 'scheduled'
+    );
+    LifeState.meetings.push(meeting);
+    LifeState.meetings = LifeState.meetings.slice(-40);
+    LifeState.save();
+    return meeting;
+  }
+
+  function completeNPCMeeting(npcKey) {
+    const meeting = getDueMeeting(npcKey);
+    const npc = NPCS[npcKey];
+    if (!meeting || !npc) return false;
+    meeting.status = 'attended';
+    npc.friendship = Math.min(100, npc.friendship + 10);
+    localStorage.setItem(`de_npc_${npcKey}_fr`, npc.friendship.toString());
+    LifeState.save();
+    showToast(`تم اللقاء مع ${npc.name} وزادت الصداقة!`);
+    return true;
+  }
 
   // 2. Sound Effects
   function playSFX(name) {
@@ -836,6 +946,14 @@
           ${Object.keys(NPCS).map(key => {
             const npc = NPCS[key];
             const frStatus = getFriendshipStatus(npc.friendship);
+                const meeting = getScheduledMeeting(key);
+                const meetingPeriod = meeting && DAY_PERIODS.find((period) => period.id === meeting.periodId);
+                const meetingText = meetingPeriod
+                  ? `${Date.now() >= meeting.dueAt ? 'موعدك متاح الآن' : 'موعدك القادم'}: ${meetingPeriod.label.ar} · ${new Date(meeting.dueAt).toLocaleTimeString('ar', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} (${npc.world})`
+                  : 'لا يوجد موعد قادم.';
             return `
               <div class="de-npc-card">
                 <div class="de-npc-card-header">
@@ -861,6 +979,28 @@
                 <button class="de-npc-action-btn" data-npckey="${key}">
                   <span>💬</span> <span>دردشة وبناء صداقة (Unterhalten)</span>
                 </button>
+                ${npc.friendship >= 60 ? `
+                  <div class="de-friend-meeting">
+                    <label for="de-meeting-period-${key}">اختر فترة اللقاء</label>
+                    <div class="de-friend-meeting-controls">
+                      <select id="de-meeting-period-${key}" class="de-meeting-period">
+                        ${DAY_PERIODS.map((period) => `
+                          <option value="${period.id}" ${period.id === getCurrentDayPeriod().id ? 'selected' : ''}>
+                            ${period.label.ar} (${period.value.split(' ')[0]})
+                          </option>
+                        `).join('')}
+                      </select>
+                      <button class="de-meeting-schedule-btn" type="button" data-npckey="${key}">
+                        ترتيب لقاء
+                      </button>
+                    </div>
+                    <p class="de-meeting-status" role="status">${meetingText}</p>
+                  </div>
+                ` : `
+                  <p class="de-friendship-unlock">
+                    تُفتح اللقاءات عند بلوغ الصداقة 60/100.
+                  </p>
+                `}
               </div>
             `;
           }).join('')}
@@ -871,6 +1011,27 @@
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-npckey');
           openNPCConversation(key);
+        });
+      });
+      container.querySelectorAll('.de-meeting-schedule-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const npcKey = btn.getAttribute('data-npckey');
+          const card = btn.closest('.de-npc-card');
+          const period = card.querySelector('.de-meeting-period');
+          const status = card.querySelector('.de-meeting-status');
+          const meeting = scheduleNPCMeeting(npcKey, period.value);
+          if (!meeting) {
+            status.textContent = 'تعذر ترتيب هذا اللقاء.';
+            console.error(`Could not schedule a meeting with NPC "${npcKey}".`);
+            return;
+          }
+          const npc = NPCS[npcKey];
+          const timePeriod = DAY_PERIODS.find((entry) => entry.id === meeting.periodId);
+          const time = new Date(meeting.dueAt).toLocaleTimeString('ar', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          status.textContent = `حُجز لقاء مع ${npc.name} في ${timePeriod.label.ar} عند ${time}. اذهب إلى ${npc.world}.`;
         });
       });
 
@@ -1040,7 +1201,7 @@
   }
 
   // 11. NPC Social Chat Window
-  function openNPCConversation(npcKey) {
+  function openNPCConversation(npcKey, { initiatedByNpc = false } = {}) {
     const npc = NPCS[npcKey];
     if (!npc) return;
 
@@ -1072,11 +1233,12 @@
         newlineHint: 'for a new line',
         suggestions: 'You could start with',
         privacyBefore: 'Your messages are sent to',
-        privacyAfter: 'to generate replies. Do not share personal or confidential information.',
+        privacyAfter: 'to generate replies. Your conversation history is saved in this browser. Do not share personal or confidential information.',
         typing: 'is typing…',
         connectionError: 'Could not reach the AI. Check your connection and try again.',
         serviceBusy: 'The AI service is busy. Please try again shortly.',
         replyTimeout: 'The reply took too long. Try one of the suggestions or send again.',
+        invalidReply: 'The AI returned an unreadable reply. Please send your message again.',
         notConfigured: 'AI chat has not been configured on the server yet.',
         turnLimit: 'You reached the message limit for this conversation.'
       }
@@ -1098,11 +1260,12 @@
         newlineHint: 'لسطر جديد',
         suggestions: 'يمكنك أن تبدأ بقول',
         privacyBefore: 'تُرسل رسائلك إلى',
-        privacyAfter: 'لإنشاء الردود. لا تكتب معلومات شخصية أو سرية.',
+        privacyAfter: 'لإنشاء الردود. يُحفظ سجل المحادثة في هذا المتصفح. لا تكتب معلومات شخصية أو سرية.',
         typing: 'يكتب الآن…',
         connectionError: 'تعذر الاتصال بالذكاء الاصطناعي. تحقق من اتصالك وحاول مجددًا.',
         serviceBusy: 'الخدمة مشغولة الآن. حاول مجددًا بعد قليل.',
         replyTimeout: 'تأخر الرد. اختر أحد الاقتراحات أو أعد الإرسال.',
+        invalidReply: 'وصل رد بتنسيق غير مقروء. أعد إرسال رسالتك من فضلك.',
         notConfigured: 'لم تُضبط خدمة الذكاء الاصطناعي على الخادم بعد.',
         turnLimit: 'وصلت إلى الحد الأقصى لعدد الرسائل في هذه المحادثة.'
       };
@@ -1250,7 +1413,60 @@
       { de: 'Ich verstehe nicht.', ar: 'أنا لا أفهم.' },
       { de: 'Tschüss!', ar: 'وداعًا!' }
     ];
-    const messages = [];
+    const chatHistoryKey = `de_npc_${npcKey}_conversation_v1`;
+    const chatHistoryLimit = 20;
+    const transcriptHistoryLimit = 100;
+    let storedChatHistory = null;
+    try {
+      const saved = localStorage.getItem(chatHistoryKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const validMessages = Array.isArray(parsed.messages)
+          && parsed.messages.length <= chatHistoryLimit
+          && parsed.messages.every((message) => (
+            message
+            && (message.role === 'user' || message.role === 'assistant')
+            && typeof message.content === 'string'
+            && message.content.trim()
+            && message.content.length <= (message.role === 'user' ? 500 : 700)
+          ))
+          && parsed.messages.every((message, index, list) => (
+            index === 0 || message.role !== list[index - 1].role
+          ));
+        const validTranscript = Array.isArray(parsed.transcript)
+          && parsed.transcript.length <= transcriptHistoryLimit
+          && parsed.transcript.every((entry, index) => (
+            entry
+            && (entry.role === 'user' || entry.role === 'assistant')
+            && (index === 0 || entry.role !== parsed.transcript[index - 1].role)
+            && typeof entry.content === 'string'
+            && entry.content.trim()
+            && entry.content.length <= (entry.role === 'user' ? 500 : 700)
+            && typeof entry.translation === 'string'
+            && typeof entry.suggestedTranslation === 'string'
+            && (entry.translationLanguage === 'ar' || entry.translationLanguage === 'en')
+          ));
+        const messagesMatchTranscript = validMessages && validTranscript
+          && parsed.messages.length <= parsed.transcript.length
+          && parsed.messages.every((message, index) => {
+            const entry = parsed.transcript[parsed.transcript.length - parsed.messages.length + index];
+            return entry.role === message.role && entry.content === message.content;
+          });
+        if (validMessages && validTranscript && messagesMatchTranscript) {
+          storedChatHistory = {
+            messages: parsed.messages,
+            transcript: parsed.transcript,
+            options: Array.isArray(parsed.options) ? parsed.options : []
+          };
+        } else {
+          console.warn(`Ignoring invalid saved chat history for NPC "${npcKey}".`);
+        }
+      }
+    } catch (error) {
+      console.warn(`Could not read saved chat history for NPC "${npcKey}".`, error);
+    }
+    const messages = storedChatHistory ? [...storedChatHistory.messages] : [];
+    const transcript = [];
     let turns = 0;
     let isBusy = false;
     let rewardGranted = false;
@@ -1259,6 +1475,20 @@
     let activeListenButton = null;
     let audioIndicatorTimer = null;
     let lastMessageRole = null;
+
+    function persistChatHistory() {
+      while (messages.length > chatHistoryLimit) messages.shift();
+      while (transcript.length > transcriptHistoryLimit) transcript.shift();
+      try {
+        localStorage.setItem(chatHistoryKey, JSON.stringify({
+          messages,
+          transcript,
+          options: suggestedResponses.slice(0, 3).map(({ de, ar }) => ({ de, ar }))
+        }));
+      } catch (error) {
+        console.warn(`Could not save chat history for NPC "${npcKey}".`, error);
+      }
+    }
 
     function shouldStickToBottom() {
       return historyElement.scrollHeight - historyElement.scrollTop - historyElement.clientHeight < 72;
@@ -1348,6 +1578,13 @@
 
       row.appendChild(message);
       historyElement.appendChild(row);
+      transcript.push({
+        role,
+        content: germanText,
+        translation: translation || '',
+        suggestedTranslation: suggestedTranslation || '',
+        translationLanguage: options.translationLanguage || language
+      });
       scrollToBottomIfPinned(wasPinned);
       return { row, germanContent, german };
     }
@@ -1616,7 +1853,8 @@
           body: JSON.stringify({
             npcKey,
             language,
-            messages,
+            messages: messages.slice(-chatHistoryLimit),
+            npcInitiated: Boolean(initiatedByNpc),
             gameLocation: window.GermanWorldLocation || null
           }),
           signal: requestController.signal
@@ -1629,7 +1867,9 @@
               ? copy.serviceBusy
               : response.status === 504
                 ? copy.replyTimeout
-              : copy.connectionError;
+                : result?.code === 'INVALID_REPLY'
+                  ? copy.invalidReply
+                  : copy.connectionError;
           throw new Error(errorMessage);
         }
         const reply = typeof result?.reply === 'string'
@@ -1641,7 +1881,7 @@
         const germanReply = reply.de.trim();
         const arabicReply = typeof reply.ar === 'string' ? reply.ar.trim() : '';
 
-        if (userText || messages.length === 0) {
+        if (userText || messages.length === 0 || initiatedByNpc) {
           messages.push({ role: 'assistant', content: germanReply });
         }
         typingIndicator.remove();
@@ -1654,6 +1894,7 @@
         );
         typewriteMessage(assistantMessage, germanReply);
         renderSuggestions(reply.options);
+        persistChatHistory();
         statusElement.textContent = '';
         statusElement.classList.remove('is-error');
         if (input.value.trim() === userText) {
@@ -1678,6 +1919,7 @@
           if (userMessage) {
             userMessage.row.remove();
             messages.pop();
+            transcript.pop();
             turns -= 1;
             lastMessageRole = messages.length ? messages[messages.length - 1].role : null;
           }
@@ -1764,7 +2006,21 @@
     }
 
     window.addEventListener('keydown', onGlobalKeyDown);
-    sendMessage('');
+    if (storedChatHistory) {
+      storedChatHistory.transcript.forEach((entry) => {
+        appendMessage(
+          entry.role,
+          entry.content,
+          entry.translation,
+          entry.suggestedTranslation,
+          { translationLanguage: entry.translationLanguage }
+        );
+      });
+      renderSuggestions(storedChatHistory.options);
+      if (initiatedByNpc) sendMessage('');
+    } else {
+      sendMessage('');
+    }
   }
 
   // 12. Perform Job
@@ -1811,6 +2067,9 @@
 
   // 14. Initialize
   function init() {
+    syncDayPeriod();
+    window.setInterval(syncDayPeriod, 10_000);
+    document.addEventListener('visibilitychange', syncDayPeriod);
     renderLifeHUD();
     renderWorldNPCBeacon();
     console.log('✅ German Life Simulator (Deutsches Lebens-System) active!');
@@ -1828,7 +2087,9 @@
     JOBS,
     PROPERTIES,
     openLifeModal,
-    openNPCConversation
+    openNPCConversation,
+    getDueMeeting,
+    completeNPCMeeting
   };
 
 })();
