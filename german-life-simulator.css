@@ -2508,3 +2508,131 @@
   min-height: 44px;
   flex-basis: 44px;
 }
+
+.de-ai-translation-toggle {
+  color: #b7b8be;
+  background: transparent;
+  opacity: 0.65;
+}
+
+.de-ai-translation-toggle svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.de-ai-translation-toggle[aria-pressed="true"] {
+  color: #f0924f;
+  background: rgba(240, 146, 79, 0.16);
+  opacity: 1;
+}
+
+.de-ai-translation-toggle[aria-pressed="true"]::after {
+  top: 2px;
+  right: 2px;
+  bottom: auto;
+  width: 7px;
+  height: 7px;
+  background: #f0924f;
+}
+
+.de-ai-translation-toggle[aria-pressed="false"]::before {
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 2px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  background: currentColor;
+}
+
+.de-ai-translation-toggle:hover {
+  border-color: transparent;
+  background: transparent;
+  color: #b7b8be;
+}
+
+.de-ai-translation-toggle[aria-pressed="true"]:hover {
+  border-color: rgba(240, 146, 79, 0.2);
+  background: rgba(240, 146, 79, 0.16);
+  color: #f0924f;
+}
+
+.de-ai-suggestions {
+  max-height: 150px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.de-ai-suggestion-skeleton {
+  position: relative;
+  display: grid;
+  min-height: 44px;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  grid-template-rows: 12px 10px;
+  align-items: center;
+  gap: 4px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.de-ai-suggestion-skeleton .skeleton-german,
+.de-ai-suggestion-skeleton .skeleton-arabic,
+.de-ai-suggestion-skeleton .skeleton-key {
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.de-ai-suggestion-skeleton .skeleton-german {
+  width: 66%;
+  height: 10px;
+}
+
+.de-ai-suggestion-skeleton .skeleton-arabic {
+  width: 42%;
+  height: 8px;
+}
+
+.de-ai-suggestion-skeleton .skeleton-key {
+  width: 20px;
+  height: 20px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: center;
+  border-radius: 6px;
+}
+
+.de-ai-suggestion-skeleton::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.1) 50%, transparent 80%);
+  animation: deAiSuggestionShimmer 1.25s ease-in-out infinite;
+  content: "";
+  pointer-events: none;
+}
+
+.de-ai-composer:focus-within {
+  border-width: 1px;
+  box-shadow: 0 0 0 2px rgba(240, 146, 79, 0.14);
+}
+
+@keyframes deAiSuggestionShimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .de-ai-suggestion-skeleton::after {
+    animation: none;
+  }
+}

@@ -799,6 +799,7 @@
         typing: 'is typing…',
         connectionError: 'Could not reach the AI. Check your connection and try again.',
         serviceBusy: 'The AI service is busy. Please try again shortly.',
+        replyTimeout: 'The reply took too long. Try one of the suggestions or send again.',
         notConfigured: 'AI chat has not been configured on the server yet.',
         turnLimit: 'You reached the message limit for this conversation.'
       }
@@ -824,6 +825,7 @@
         typing: 'يكتب الآن…',
         connectionError: 'تعذر الاتصال بالذكاء الاصطناعي. تحقق من اتصالك وحاول مجددًا.',
         serviceBusy: 'الخدمة مشغولة الآن. حاول مجددًا بعد قليل.',
+        replyTimeout: 'تأخر الرد. اختر أحد الاقتراحات أو أعد الإرسال.',
         notConfigured: 'لم تُضبط خدمة الذكاء الاصطناعي على الخادم بعد.',
         turnLimit: 'وصلت إلى الحد الأقصى لعدد الرسائل في هذه المحادثة.'
       };
@@ -863,7 +865,9 @@
             <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
               aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
               title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
-              <span aria-hidden="true">文A</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3.5 19 8 5l4.5 14M5.2 13h5.6M14 6h7M17.5 3.5V6M13.5 10c1.4 3.2 3.7 5.5 7.5 7M20.5 10c-1.6 3.5-4.1 6-7.5 8M13 20c2.4-1.1 5.2-2.7 8-5.2"></path>
+              </svg>
               <span>${showTranslations ? copy.hideTranslations : copy.showTranslations}</span>
             </button>
             <details class="de-ai-privacy-info">
@@ -964,6 +968,11 @@
     const translationToggle = overlay.querySelector('#de-ai-translation-toggle');
     const characterCount = overlay.querySelector('#de-ai-character-count');
     const npcShortName = npcKey === 'herr_weber' ? 'Herr Weber' : npc.name.split(' ')[0];
+    const localFallbackOptions = [
+      { de: 'Erzähl mir mehr.', ar: 'أخبرني المزيد.' },
+      { de: 'Ich verstehe nicht.', ar: 'أنا لا أفهم.' },
+      { de: 'Tschüss!', ar: 'وداعًا!' }
+    ];
     const messages = [];
     let turns = 0;
     let isBusy = false;
@@ -1066,6 +1075,21 @@
       return { row, germanContent, german };
     }
 
+    function renderSuggestionSkeletons() {
+      const title = document.createElement('div');
+      title.className = 'de-ai-suggestions-title';
+      title.textContent = copy.suggestions;
+      suggestionsElement.replaceChildren(title);
+      for (let index = 0; index < 3; index += 1) {
+        const row = document.createElement('div');
+        row.className = 'de-ai-suggestion-skeleton';
+        row.setAttribute('aria-hidden', 'true');
+        row.innerHTML = '<span class="skeleton-german"></span><span class="skeleton-arabic"></span><span class="skeleton-key"></span>';
+        suggestionsElement.appendChild(row);
+      }
+      suggestionsElement.hidden = false;
+    }
+
     function renderSuggestions(options) {
       const validOptions = Array.isArray(options)
         ? options.filter((option) => (
@@ -1074,15 +1098,13 @@
           && typeof option.ar === 'string'
           && option.de.trim()
           && option.ar.trim()
+          && option.de.trim().split(/\s+/).length <= 12
         )).slice(0, 3)
         : [];
-      suggestedResponses = validOptions.length ? validOptions : [...npc.dialogue.responses];
-      if (suggestedResponses.length < 2) {
-        suggestedResponses.push({
-          de: 'Kannst du mir ein neues deutsches Wort beibringen?',
-          ar: 'هل يمكنك تعليمي كلمة ألمانية جديدة؟',
-          friendshipBonus: 10
-        });
+      suggestedResponses = [...validOptions];
+      for (const fallbackOption of localFallbackOptions) {
+        if (suggestedResponses.length >= 3) break;
+        suggestedResponses.push(fallbackOption);
       }
 
       const title = document.createElement('div');
@@ -1158,10 +1180,6 @@
         return;
       }
 
-      const suggestionButtons = overlay.querySelectorAll('.de-ai-suggestion');
-      suggestionButtons.forEach((button) => {
-        button.disabled = true;
-      });
       const controller = {
         row: message.row,
         content: message.germanContent,
@@ -1188,9 +1206,6 @@
         controller.row.removeEventListener('click', controller.skipClick);
         historyElement.setAttribute('aria-live', controller.previousLiveMode);
         activeTypewriter = null;
-        suggestionButtons.forEach((button) => {
-          button.disabled = isBusy;
-        });
       };
       controller.skipClick = (event) => {
         if (!event.target.closest?.('button')) controller.finish();
@@ -1308,11 +1323,14 @@
       statusElement.classList.remove('is-error');
       input.disabled = true;
       sendButton.disabled = true;
-      overlay.querySelectorAll('.de-ai-suggestion').forEach((button) => {
-        button.disabled = true;
-      });
+      renderSuggestionSkeletons();
       const typingIndicator = appendTypingIndicator();
       requestController = new AbortController();
+      let timedOut = false;
+      const requestTimeout = window.setTimeout(() => {
+        timedOut = true;
+        requestController?.abort();
+      }, 6_000);
 
       try {
         const response = await fetch('/api/german-chat', {
@@ -1331,6 +1349,8 @@
             ? copy.notConfigured
             : response.status === 429
               ? copy.serviceBusy
+              : response.status === 504
+                ? copy.replyTimeout
               : copy.connectionError;
           throw new Error(errorMessage);
         }
@@ -1376,29 +1396,29 @@
         }
       } catch (error) {
         typingIndicator.remove();
-        if (error.name !== 'AbortError') {
+        if (error.name !== 'AbortError' || timedOut) {
           if (userMessage) {
             userMessage.row.remove();
             messages.pop();
             turns -= 1;
             lastMessageRole = messages.length ? messages[messages.length - 1].role : null;
-            suggestionsElement.hidden = false;
           }
-          statusElement.textContent = error.name === 'TypeError'
-            ? copy.connectionError
-            : error.message || copy.connectionError;
-          statusElement.classList.add('is-error');
+          if (overlay.isConnected && !overlay.classList.contains('is-closing')) {
+            renderSuggestions(localFallbackOptions);
+            statusElement.textContent = timedOut
+              ? copy.replyTimeout
+              : error.message || copy.connectionError;
+            statusElement.classList.add('is-error');
+          }
         }
       } finally {
+        window.clearTimeout(requestTimeout);
         typingIndicator.remove();
         isBusy = false;
         requestController = null;
         if (overlay.isConnected) {
           input.disabled = false;
           sendButton.disabled = false;
-          overlay.querySelectorAll('.de-ai-suggestion').forEach((button) => {
-            button.disabled = Boolean(activeTypewriter);
-          });
         }
       }
     }
