@@ -3216,6 +3216,11 @@ body.de-game-world :is(.tutorial-toggle-btn, .mute-wrapper, .pause-btn) {
   pointer-events: none !important;
 }
 
+body.de-game-world .pause-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 @media (max-width: 1024px) {
   body.de-game-world .de-life-stat {
     gap: 4px;

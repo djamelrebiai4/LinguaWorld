@@ -17,7 +17,9 @@ import {
   P as Physics
 } from './physics-vendor-HODa8zue.js';
 import {
-  G as collisionGroups
+  G as collisionGroups,
+  d as EffectComposer,
+  a as SSAO
 } from './CollisionConfig-_pz6FJXP.js';
 import { d as audio, I as ObjectInteraction } from './index-C2Y9NDyy.js';
 
@@ -1831,6 +1833,10 @@ export default function WorldScene({
           onObjectClick,
           isPaused,
           isMobile
-        })))
+        }))),
+    !isMobile
+      ? h(EffectComposer, { disableNormalPass: true },
+        h(SSAO, { aoRadius: 2, intensity: 2, color: 'black' }))
+      : null
   );
 }
