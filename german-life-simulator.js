@@ -8,82 +8,19 @@
 (function () {
   'use strict';
 
-  function displayTimeOfDay(value) {
-    return String(value)
-      .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u26FF\uFE0F]/gu, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  const DAY_PERIODS = [
-    { id: 'morning', value: 'Morgen 🌅', label: { ar: 'الصباح', en: 'Morning' } },
-    { id: 'afternoon', value: 'Nachmittag ☀️', label: { ar: 'بعد الظهر', en: 'Afternoon' } },
-    { id: 'evening', value: 'Abend 🌆', label: { ar: 'المساء', en: 'Evening' } },
-    { id: 'night', value: 'Nacht 🌙', label: { ar: 'الليل', en: 'Night' } }
-  ];
-  const DAY_PERIOD_DURATION_MS = 5 * 60 * 1000;
-  const DAY_PERIOD_CYCLE_MS = DAY_PERIOD_DURATION_MS * DAY_PERIODS.length;
-  const DAY_CYCLE_START_KEY = 'de_life_day_cycle_start';
-  const savedTimeOfDay = localStorage.getItem('de_life_time') || 'Nachmittag ☀️';
-  const savedTimePeriodIndex = DAY_PERIODS.findIndex((period) =>
-    displayTimeOfDay(period.value) === displayTimeOfDay(savedTimeOfDay)
-  );
-  const savedPeriodIndex = savedTimePeriodIndex >= 0 ? savedTimePeriodIndex : 1;
-  let dayCycleStartedAt = Number(localStorage.getItem(DAY_CYCLE_START_KEY));
-  if (!Number.isFinite(dayCycleStartedAt) || dayCycleStartedAt <= 0 || dayCycleStartedAt > Date.now()) {
-    dayCycleStartedAt = Date.now() - savedPeriodIndex * DAY_PERIOD_DURATION_MS;
-    localStorage.setItem(DAY_CYCLE_START_KEY, String(dayCycleStartedAt));
-  }
-
-  function getCurrentDayPeriod(now = Date.now()) {
-    const elapsed = Math.max(0, now - dayCycleStartedAt);
-    return DAY_PERIODS[Math.floor(elapsed / DAY_PERIOD_DURATION_MS) % DAY_PERIODS.length];
-  }
-
-  function getNextMeetingSlot(periodId, now = Date.now()) {
-    const periodIndex = DAY_PERIODS.findIndex((period) => period.id === periodId);
-    if (periodIndex < 0) return null;
-    const cycleIndex = Math.floor((now - dayCycleStartedAt) / DAY_PERIOD_CYCLE_MS);
-    let dueAt = dayCycleStartedAt
-      + cycleIndex * DAY_PERIOD_CYCLE_MS
-      + periodIndex * DAY_PERIOD_DURATION_MS;
-    if (dueAt <= now) dueAt += DAY_PERIOD_CYCLE_MS;
-    return { dueAt };
-  }
-
-  function loadMeetings() {
-    try {
-      const saved = JSON.parse(localStorage.getItem('de_life_meetings') || '[]');
-      if (!Array.isArray(saved)) throw new TypeError('Saved meetings must be an array.');
-      return saved.filter((meeting) => (
-        meeting
-        && typeof meeting.npcKey === 'string'
-        && DAY_PERIODS.some((period) => period.id === meeting.periodId)
-        && Number.isFinite(meeting.dueAt)
-        && ['scheduled', 'attended'].includes(meeting.status)
-      )).slice(-40);
-    } catch (error) {
-      console.warn('Could not read saved NPC meetings.', error);
-      return [];
-    }
-  }
-
   // 1. Life State & Persistence
   const LifeState = {
     money: parseInt(localStorage.getItem('de_life_money') || '350', 10),
     energy: parseInt(localStorage.getItem('de_life_energy') || '100', 10),
-    timeOfDay: getCurrentDayPeriod().value,
-    meetings: loadMeetings(),
+    timeOfDay: localStorage.getItem('de_life_time') || 'Nachmittag ☀️',
     properties: JSON.parse(localStorage.getItem('de_life_properties') || '[]'),
     inventory: JSON.parse(localStorage.getItem('de_life_inventory') || '["Kaffee ☕", "Buch 📖"]'),
     activeNpcKey: null,
 
     save() {
-      this.timeOfDay = getCurrentDayPeriod().value;
       localStorage.setItem('de_life_money', this.money.toString());
       localStorage.setItem('de_life_energy', this.energy.toString());
       localStorage.setItem('de_life_time', this.timeOfDay);
-      localStorage.setItem('de_life_meetings', JSON.stringify(this.meetings));
       localStorage.setItem('de_life_properties', JSON.stringify(this.properties));
       localStorage.setItem('de_life_inventory', JSON.stringify(this.inventory));
       this.updateHUD();
@@ -130,63 +67,9 @@
       const energyEl = document.getElementById('de-life-energy-val');
       if (energyEl) energyEl.textContent = `${this.energy}%`;
       const timeEl = document.getElementById('de-life-time-val');
-      if (timeEl) timeEl.textContent = displayTimeOfDay(this.timeOfDay);
+      if (timeEl) timeEl.textContent = this.timeOfDay;
     }
   };
-
-  function syncDayPeriod() {
-    const period = getCurrentDayPeriod();
-    if (LifeState.timeOfDay === period.value) return;
-    LifeState.timeOfDay = period.value;
-    localStorage.setItem('de_life_time', LifeState.timeOfDay);
-    LifeState.updateHUD();
-    window.dispatchEvent(new CustomEvent('german-life-time-change', {
-      detail: { periodId: period.id, timeOfDay: period.value }
-    }));
-  }
-
-  function getScheduledMeeting(npcKey) {
-    return LifeState.meetings.find((entry) =>
-      entry.npcKey === npcKey && entry.status === 'scheduled'
-    ) || null;
-  }
-
-  function getDueMeeting(npcKey) {
-    const meeting = getScheduledMeeting(npcKey);
-    if (!meeting) return null;
-    return Date.now() >= meeting.dueAt ? meeting : null;
-  }
-
-  function scheduleNPCMeeting(npcKey, periodId) {
-    const npc = NPCS[npcKey];
-    const slot = getNextMeetingSlot(periodId);
-    if (!npc || npc.friendship < 60 || !slot) return null;
-    const meeting = {
-      npcKey,
-      periodId,
-      ...slot,
-      status: 'scheduled'
-    };
-    LifeState.meetings = LifeState.meetings.filter((entry) =>
-      entry.npcKey !== npcKey || entry.status !== 'scheduled'
-    );
-    LifeState.meetings.push(meeting);
-    LifeState.meetings = LifeState.meetings.slice(-40);
-    LifeState.save();
-    return meeting;
-  }
-
-  function completeNPCMeeting(npcKey) {
-    const meeting = getDueMeeting(npcKey);
-    const npc = NPCS[npcKey];
-    if (!meeting || !npc) return false;
-    meeting.status = 'attended';
-    npc.friendship = Math.min(100, npc.friendship + 10);
-    localStorage.setItem(`de_npc_${npcKey}_fr`, npc.friendship.toString());
-    LifeState.save();
-    showToast(`تم اللقاء مع ${npc.name} وزادت الصداقة!`);
-    return true;
-  }
 
   // 2. Sound Effects
   function playSFX(name) {
@@ -203,16 +86,14 @@
     if (old) old.remove();
     const toast = document.createElement('div');
     toast.className = 'de-toast';
-    toast.innerHTML = `<span class="de-toast-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.4 9l6 .5-4.5 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9-4.5-3.9 6-.5L12 3.5Z"/></svg></span><span>${message}</span>`;
+    toast.innerHTML = `<span>🇩🇪</span><span>${message}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
-      toast.style.transform = document.body.classList.contains('de-game-world')
-        ? 'translate(-50%, 20px)'
-        : 'translateY(20px)';
+      toast.style.transform = 'translateY(20px)';
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    }, 3200);
   }
 
   // 4. Speech Helper
@@ -401,114 +282,6 @@
           }
         ]
       }
-    },
-    karim: {
-      id: 'karim',
-      name: 'Karim Yilmaz',
-      role: 'Der Stammgast und Hobbykoch (زبون دائم وطاهٍ هاوٍ)',
-      world: 'Restaurant',
-      avatar: '🍲',
-      personality: 'Gesellig, neugierig und begeistert von gutem Essen (اجتماعي وفضولي ويحب الطعام الجيد)',
-      mood: 'Entspannt 😊',
-      friendship: parseInt(localStorage.getItem('de_npc_karim_fr') || '12', 10),
-      topics: ['Lieblingsgerichte', 'Kochen', 'Reisen'],
-      dialogue: {
-        greeting: 'Hallo! Ich probiere heute ein neues Gericht. Was isst du gern?',
-        greeting_ar: 'مرحباً! أجرب اليوم طبقاً جديداً. ما الطعام الذي تحبه؟',
-        responses: [
-          {
-            de: 'Ich probiere gern Gerichte aus anderen Ländern.',
-            ar: 'أحب تجربة أطباق من بلدان أخرى.',
-            friendshipBonus: 15
-          },
-          {
-            de: 'Was kannst du hier besonders empfehlen?',
-            ar: 'ما الطبق الذي تنصح به هنا؟',
-            friendshipBonus: 10
-          }
-        ]
-      }
-    },
-    maria: {
-      id: 'maria',
-      name: 'Maria Fischer',
-      role: 'Die Kellnerin (نادلة المطعم)',
-      world: 'Restaurant',
-      avatar: '🍽️',
-      personality: 'Aufmerksam, fleißig und immer freundlich (منتبهة ومجتهدة وودودة)',
-      mood: 'Beschäftigt, aber freundlich 🙂',
-      friendship: parseInt(localStorage.getItem('de_npc_maria_fr') || '12', 10),
-      topics: ['Arbeit im Restaurant', 'Bestellungen', 'Lieblingsessen'],
-      dialogue: {
-        greeting: 'Guten Tag! Haben Sie schon gewählt oder darf ich Ihnen helfen?',
-        greeting_ar: 'طاب يومك! هل اخترت طلبك أم أستطيع مساعدتك؟',
-        responses: [
-          {
-            de: 'Könnten Sie mir bitte die Speisekarte bringen?',
-            ar: 'هل يمكنك إحضار قائمة الطعام من فضلك؟',
-            friendshipBonus: 15
-          },
-          {
-            de: 'Was ist heute besonders beliebt?',
-            ar: 'ما الطبق الأكثر طلباً اليوم؟',
-            friendshipBonus: 10
-          }
-        ]
-      }
-    },
-    leon: {
-      id: 'leon',
-      name: 'Leon Hartmann',
-      role: 'Der Kunde auf dem Wocheneinkauf (زبون يتسوق للأسبوع)',
-      world: 'Supermarket',
-      avatar: '🛒',
-      personality: 'Praktisch, freundlich und kocht gern zu Hause (عملي وودود ويحب الطبخ في المنزل)',
-      mood: 'Gut gelaunt 😄',
-      friendship: parseInt(localStorage.getItem('de_npc_leon_fr') || '12', 10),
-      topics: ['Einkaufen', 'Rezepte', 'Lebensmittel'],
-      dialogue: {
-        greeting: 'Hallo! Ich suche alles für das Abendessen. Was steht bei dir auf dem Einkaufszettel?',
-        greeting_ar: 'مرحباً! أبحث عن مكونات العشاء. ماذا كتبت في قائمة مشترياتك؟',
-        responses: [
-          {
-            de: 'Ich brauche Gemüse und frisches Brot.',
-            ar: 'أحتاج إلى الخضروات والخبز الطازج.',
-            friendshipBonus: 15
-          },
-          {
-            de: 'Hast du ein einfaches Rezept für heute Abend?',
-            ar: 'هل لديك وصفة سهلة لهذا المساء؟',
-            friendshipBonus: 10
-          }
-        ]
-      }
-    },
-    aylin: {
-      id: 'aylin',
-      name: 'Aylin Demir',
-      role: 'Die Kundin und leidenschaftliche Bäckerin (زبونة وخبّازة شغوفة)',
-      world: 'Supermarket',
-      avatar: '🥐',
-      personality: 'Kreativ, hilfsbereit und liebt frische Zutaten (مبدعة ومتعاونة وتحب المكونات الطازجة)',
-      mood: 'Fröhlich 😊',
-      friendship: parseInt(localStorage.getItem('de_npc_aylin_fr') || '12', 10),
-      topics: ['Backen', 'Einkaufstipps', 'Familienrezepte'],
-      dialogue: {
-        greeting: 'Hallo! Ich suche Zutaten für einen Kuchen. Backst du auch gern?',
-        greeting_ar: 'مرحباً! أبحث عن مكونات لكعكة. هل تحب الخَبز أيضاً؟',
-        responses: [
-          {
-            de: 'Ja, ich backe gern am Wochenende.',
-            ar: 'نعم، أحب الخَبز في عطلة نهاية الأسبوع.',
-            friendshipBonus: 15
-          },
-          {
-            de: 'Wo finde ich hier das Mehl?',
-            ar: 'أين أجد الدقيق هنا؟',
-            friendshipBonus: 10
-          }
-        ]
-      }
     }
   };
 
@@ -658,186 +431,26 @@
   function renderLifeHUD() {
     if (document.getElementById('de-life-top-hud')) return;
 
-    const uiLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
-      ? window.GermanEngine.getSupportLanguage()
-      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
-    const isGameWorld = Boolean(
-      window.location.pathname.toLowerCase().match(/\/levels\/(city|house|classroom|restaurant|supermarket)/)
-    );
-    if (!isGameWorld) {
-      const hud = document.createElement('div');
-      hud.id = 'de-life-top-hud';
-      hud.className = 'de-life-hud';
-      hud.innerHTML = `
-        <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
-          <span>💶</span> <span id="de-life-money-val">${LifeState.money} €</span>
-        </div>
-        <div class="de-life-stat energy" title="مستوى الطاقة">
-          <span>⚡</span> <span id="de-life-energy-val">${LifeState.energy}%</span>
-        </div>
-        <div class="de-life-stat" title="وقت اليوم">
-          <span id="de-life-time-val">${LifeState.timeOfDay}</span>
-        </div>
-        <button class="de-life-btn highlight" id="de-open-life-btn" title="افتح قائمة الحياة الاجتماعية والوظائف">
-          <span>🏙️</span> <span>Meine Welt (عالمي)</span>
-        </button>
-      `;
-      document.body.appendChild(hud);
-      document.getElementById('de-open-life-btn').addEventListener('click', () => {
-        openLifeModal('friends');
-      });
-      return;
-    }
-
     const hud = document.createElement('div');
     hud.id = 'de-life-top-hud';
     hud.className = 'de-life-hud';
     hud.innerHTML = `
-      <div class="de-hud-top-right" id="de-hud-top-right">
-        <div class="de-life-stats" id="de-life-stats">
-          <div class="de-life-stat money" title="${uiLanguage === 'en' ? 'Money' : 'المال'}" aria-label="${uiLanguage === 'en' ? 'Money' : 'المال'}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18m4-14H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H7"/></svg>
-            <span id="de-life-money-val">${LifeState.money} €</span>
-          </div>
-          <div class="de-life-stat energy" title="${uiLanguage === 'en' ? 'Energy' : 'الطاقة'}" aria-label="${uiLanguage === 'en' ? 'Energy' : 'الطاقة'}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></svg>
-            <span id="de-life-energy-val">${LifeState.energy}%</span>
-          </div>
-          <div class="de-life-stat time" title="${uiLanguage === 'en' ? 'Time of day' : 'وقت اليوم'}" aria-label="${uiLanguage === 'en' ? 'Time of day' : 'وقت اليوم'}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
-            <span id="de-life-time-val">${displayTimeOfDay(LifeState.timeOfDay)}</span>
-          </div>
-        </div>
-        ${isGameWorld ? `
-          <div class="de-hud-utility-controls" role="group" aria-label="${uiLanguage === 'en' ? 'Game controls' : 'أدوات اللعبة'}">
-            <button class="de-hud-icon-button" id="de-hud-hint-button" type="button"
-              title="${uiLanguage === 'en' ? 'Hint (H)' : 'تلميح (H)'}" aria-label="${uiLanguage === 'en' ? 'Hint (H)' : 'تلميح (H)'}">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4m-2-19a7 7 0 0 0-4 12.75c.6.4 1 1 1 1.75h6c0-.75.4-1.35 1-1.75A7 7 0 0 0 12 2Z"/></svg>
-            </button>
-            <button class="de-hud-icon-button" id="de-hud-music-button" type="button"
-              title="${uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت'}" aria-label="${uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت'}">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>
-            </button>
-            <button class="de-hud-icon-button" id="de-hud-pause-button" type="button"
-              title="${uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)'}" aria-label="${uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)'}" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>
-            </button>
-          </div>
-        ` : ''}
-        <div class="de-hud-settings">
-          <button class="de-hud-icon-button" id="de-hud-settings-button" type="button"
-            title="${uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}" aria-label="${uiLanguage === 'en' ? 'Settings' : 'الإعدادات'}" aria-expanded="false"
-            aria-controls="de-hud-settings-popover">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.1 1.9-1.7 2.9-2.2-.5a7.7 7.7 0 0 1-1.5.9l-.6 2.2h-3.3l-.6-2.2a7.7 7.7 0 0 1-1.5-.9l-2.2.5-1.7-2.9 1.1-1.9A8 8 0 0 1 6.3 13l-2.2-.7v-3.3l2.2-.6a8 8 0 0 1 .7-1.6L5.9 5l1.7-2.9 2.2.5a7.7 7.7 0 0 1 1.5-.9L12 .5h3.3l.6 2.2a7.7 7.7 0 0 1 1.5.9l2.2-.5L21.3 6l-1.1 1.9a8 8 0 0 1 .7 1.6l2.2.6v3.3l-2.2.7a8 8 0 0 1-.7.9Z"/></svg>
-          </button>
-          <div class="de-hud-settings-popover" id="de-hud-settings-popover" hidden>
-            <button class="de-life-btn highlight" id="de-open-life-btn" type="button"
-              title="Meine Welt">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z"/></svg>
-              <span>Meine Welt</span>
-            </button>
-          </div>
-        </div>
+      <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
+        <span>💶</span> <span id="de-life-money-val">${LifeState.money} €</span>
       </div>
+      <div class="de-life-stat energy" title="مستوى الطاقة">
+        <span>⚡</span> <span id="de-life-energy-val">${LifeState.energy}%</span>
+      </div>
+      <div class="de-life-stat" title="وقت اليوم">
+        <span id="de-life-time-val">${LifeState.timeOfDay}</span>
+      </div>
+      <button class="de-life-btn highlight" id="de-open-life-btn" title="افتح قائمة الحياة الاجتماعية والوظائف">
+        <span>🏙️</span> <span>Meine Welt (عالمي)</span>
+      </button>
     `;
     document.body.appendChild(hud);
 
-    const settingsPopover = hud.querySelector('#de-hud-settings-popover');
-    const languageControl = document.querySelector('.de-language-control');
-    if (languageControl) settingsPopover.prepend(languageControl);
-
-    const settingsButton = hud.querySelector('#de-hud-settings-button');
-    const musicButton = hud.querySelector('#de-hud-music-button');
-    const pauseButton = hud.querySelector('#de-hud-pause-button');
-    const setToggleButton = (button, isActive, label, icon) => {
-      button.title = label;
-      button.setAttribute('aria-label', label);
-      button.setAttribute('aria-pressed', String(isActive));
-      button.innerHTML = icon;
-    };
-    const musicControl = document.querySelector('.mute-button');
-    if (musicControl && musicButton) {
-      const muted = musicControl.title === 'Unmute Sound';
-      setToggleButton(
-        musicButton,
-        muted,
-        muted
-          ? uiLanguage === 'en' ? 'Unmute sound' : 'تشغيل الصوت'
-          : uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت',
-        muted
-          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>'
-          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>'
-      );
-    }
-    const pauseControl = document.querySelector('.pause-btn');
-    if (pauseControl && pauseButton) {
-      const paused = pauseControl.title === 'Resume';
-      setToggleButton(
-        pauseButton,
-        paused,
-        paused
-          ? uiLanguage === 'en' ? 'Resume (P)' : 'استئناف (P)'
-          : uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)',
-        paused
-          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>'
-          : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>'
-      );
-    }
-    const closeSettings = () => {
-      hud.querySelector('#de-hud-top-right').classList.remove('is-settings-open');
-      document.body.classList.remove('de-hud-settings-open');
-      settingsPopover.hidden = true;
-      settingsButton.setAttribute('aria-expanded', 'false');
-    };
-    settingsButton.addEventListener('click', () => {
-      const isOpen = !settingsPopover.hidden;
-      settingsPopover.hidden = isOpen;
-      settingsButton.setAttribute('aria-expanded', String(!isOpen));
-      hud.querySelector('#de-hud-top-right').classList.toggle('is-settings-open', !isOpen);
-      document.body.classList.toggle('de-hud-settings-open', !isOpen);
-    });
-
-    hud.querySelector('#de-hud-hint-button')?.addEventListener('click', () => {
-      const hint = document.querySelector('.tutorial-toggle-btn');
-      if (hint) hint.click();
-      else console.error('The in-game help control is unavailable.');
-    });
-    musicButton?.addEventListener('click', (event) => {
-      const music = document.querySelector('.mute-button');
-      if (!music) {
-        console.error('The in-game music control is unavailable.');
-        return;
-      }
-      music.click();
-      const muted = event.currentTarget.getAttribute('aria-pressed') !== 'true';
-      setToggleButton(event.currentTarget, muted, muted
-        ? uiLanguage === 'en' ? 'Unmute sound' : 'تشغيل الصوت'
-        : uiLanguage === 'en' ? 'Mute sound' : 'كتم الصوت',
-      muted
-        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/></svg>'
-        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg>');
-    });
-    pauseButton?.addEventListener('click', (event) => {
-      const pause = document.querySelector('.pause-btn');
-      if (!pause) {
-        console.error('The in-game pause control is unavailable.');
-        return;
-      }
-      pause.click();
-      const paused = event.currentTarget.getAttribute('aria-pressed') !== 'true';
-      setToggleButton(event.currentTarget, paused, paused
-        ? uiLanguage === 'en' ? 'Resume (P)' : 'استئناف (P)'
-        : uiLanguage === 'en' ? 'Pause (P)' : 'إيقاف مؤقت (P)',
-      paused
-        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>'
-        : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>');
-    });
-    document.addEventListener('click', (event) => {
-      if (!hud.querySelector('#de-hud-top-right').contains(event.target)) closeSettings();
-    });
-
     document.getElementById('de-open-life-btn').addEventListener('click', () => {
-      closeSettings();
       openLifeModal('friends');
     });
   }
@@ -946,14 +559,6 @@
           ${Object.keys(NPCS).map(key => {
             const npc = NPCS[key];
             const frStatus = getFriendshipStatus(npc.friendship);
-                const meeting = getScheduledMeeting(key);
-                const meetingPeriod = meeting && DAY_PERIODS.find((period) => period.id === meeting.periodId);
-                const meetingText = meetingPeriod
-                  ? `${Date.now() >= meeting.dueAt ? 'موعدك متاح الآن' : 'موعدك القادم'}: ${meetingPeriod.label.ar} · ${new Date(meeting.dueAt).toLocaleTimeString('ar', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })} (${npc.world})`
-                  : 'لا يوجد موعد قادم.';
             return `
               <div class="de-npc-card">
                 <div class="de-npc-card-header">
@@ -979,28 +584,6 @@
                 <button class="de-npc-action-btn" data-npckey="${key}">
                   <span>💬</span> <span>دردشة وبناء صداقة (Unterhalten)</span>
                 </button>
-                ${npc.friendship >= 60 ? `
-                  <div class="de-friend-meeting">
-                    <label for="de-meeting-period-${key}">اختر فترة اللقاء</label>
-                    <div class="de-friend-meeting-controls">
-                      <select id="de-meeting-period-${key}" class="de-meeting-period">
-                        ${DAY_PERIODS.map((period) => `
-                          <option value="${period.id}" ${period.id === getCurrentDayPeriod().id ? 'selected' : ''}>
-                            ${period.label.ar} (${period.value.split(' ')[0]})
-                          </option>
-                        `).join('')}
-                      </select>
-                      <button class="de-meeting-schedule-btn" type="button" data-npckey="${key}">
-                        ترتيب لقاء
-                      </button>
-                    </div>
-                    <p class="de-meeting-status" role="status">${meetingText}</p>
-                  </div>
-                ` : `
-                  <p class="de-friendship-unlock">
-                    تُفتح اللقاءات عند بلوغ الصداقة 60/100.
-                  </p>
-                `}
               </div>
             `;
           }).join('')}
@@ -1011,27 +594,6 @@
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-npckey');
           openNPCConversation(key);
-        });
-      });
-      container.querySelectorAll('.de-meeting-schedule-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const npcKey = btn.getAttribute('data-npckey');
-          const card = btn.closest('.de-npc-card');
-          const period = card.querySelector('.de-meeting-period');
-          const status = card.querySelector('.de-meeting-status');
-          const meeting = scheduleNPCMeeting(npcKey, period.value);
-          if (!meeting) {
-            status.textContent = 'تعذر ترتيب هذا اللقاء.';
-            console.error(`Could not schedule a meeting with NPC "${npcKey}".`);
-            return;
-          }
-          const npc = NPCS[npcKey];
-          const timePeriod = DAY_PERIODS.find((entry) => entry.id === meeting.periodId);
-          const time = new Date(meeting.dueAt).toLocaleTimeString('ar', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          status.textContent = `حُجز لقاء مع ${npc.name} في ${timePeriod.label.ar} عند ${time}. اذهب إلى ${npc.world}.`;
         });
       });
 
@@ -1201,7 +763,7 @@
   }
 
   // 11. NPC Social Chat Window
-  function openNPCConversation(npcKey, { initiatedByNpc = false } = {}) {
+  function openNPCConversation(npcKey) {
     const npc = NPCS[npcKey];
     if (!npc) return;
 
@@ -1233,12 +795,11 @@
         newlineHint: 'for a new line',
         suggestions: 'You could start with',
         privacyBefore: 'Your messages are sent to',
-        privacyAfter: 'to generate replies. Your conversation history is saved in this browser. Do not share personal or confidential information.',
+        privacyAfter: 'to generate replies. Do not share personal or confidential information.',
         typing: 'is typing…',
         connectionError: 'Could not reach the AI. Check your connection and try again.',
         serviceBusy: 'The AI service is busy. Please try again shortly.',
         replyTimeout: 'The reply took too long. Try one of the suggestions or send again.',
-        invalidReply: 'The AI returned an unreadable reply. Please send your message again.',
         notConfigured: 'AI chat has not been configured on the server yet.',
         turnLimit: 'You reached the message limit for this conversation.'
       }
@@ -1260,12 +821,11 @@
         newlineHint: 'لسطر جديد',
         suggestions: 'يمكنك أن تبدأ بقول',
         privacyBefore: 'تُرسل رسائلك إلى',
-        privacyAfter: 'لإنشاء الردود. يُحفظ سجل المحادثة في هذا المتصفح. لا تكتب معلومات شخصية أو سرية.',
+        privacyAfter: 'لإنشاء الردود. لا تكتب معلومات شخصية أو سرية.',
         typing: 'يكتب الآن…',
         connectionError: 'تعذر الاتصال بالذكاء الاصطناعي. تحقق من اتصالك وحاول مجددًا.',
         serviceBusy: 'الخدمة مشغولة الآن. حاول مجددًا بعد قليل.',
         replyTimeout: 'تأخر الرد. اختر أحد الاقتراحات أو أعد الإرسال.',
-        invalidReply: 'وصل رد بتنسيق غير مقروء. أعد إرسال رسالتك من فضلك.',
         notConfigured: 'لم تُضبط خدمة الذكاء الاصطناعي على الخادم بعد.',
         turnLimit: 'وصلت إلى الحد الأقصى لعدد الرسائل في هذه المحادثة.'
       };
@@ -1413,60 +973,7 @@
       { de: 'Ich verstehe nicht.', ar: 'أنا لا أفهم.' },
       { de: 'Tschüss!', ar: 'وداعًا!' }
     ];
-    const chatHistoryKey = `de_npc_${npcKey}_conversation_v1`;
-    const chatHistoryLimit = 20;
-    const transcriptHistoryLimit = 100;
-    let storedChatHistory = null;
-    try {
-      const saved = localStorage.getItem(chatHistoryKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const validMessages = Array.isArray(parsed.messages)
-          && parsed.messages.length <= chatHistoryLimit
-          && parsed.messages.every((message) => (
-            message
-            && (message.role === 'user' || message.role === 'assistant')
-            && typeof message.content === 'string'
-            && message.content.trim()
-            && message.content.length <= (message.role === 'user' ? 500 : 700)
-          ))
-          && parsed.messages.every((message, index, list) => (
-            index === 0 || message.role !== list[index - 1].role
-          ));
-        const validTranscript = Array.isArray(parsed.transcript)
-          && parsed.transcript.length <= transcriptHistoryLimit
-          && parsed.transcript.every((entry, index) => (
-            entry
-            && (entry.role === 'user' || entry.role === 'assistant')
-            && (index === 0 || entry.role !== parsed.transcript[index - 1].role)
-            && typeof entry.content === 'string'
-            && entry.content.trim()
-            && entry.content.length <= (entry.role === 'user' ? 500 : 700)
-            && typeof entry.translation === 'string'
-            && typeof entry.suggestedTranslation === 'string'
-            && (entry.translationLanguage === 'ar' || entry.translationLanguage === 'en')
-          ));
-        const messagesMatchTranscript = validMessages && validTranscript
-          && parsed.messages.length <= parsed.transcript.length
-          && parsed.messages.every((message, index) => {
-            const entry = parsed.transcript[parsed.transcript.length - parsed.messages.length + index];
-            return entry.role === message.role && entry.content === message.content;
-          });
-        if (validMessages && validTranscript && messagesMatchTranscript) {
-          storedChatHistory = {
-            messages: parsed.messages,
-            transcript: parsed.transcript,
-            options: Array.isArray(parsed.options) ? parsed.options : []
-          };
-        } else {
-          console.warn(`Ignoring invalid saved chat history for NPC "${npcKey}".`);
-        }
-      }
-    } catch (error) {
-      console.warn(`Could not read saved chat history for NPC "${npcKey}".`, error);
-    }
-    const messages = storedChatHistory ? [...storedChatHistory.messages] : [];
-    const transcript = [];
+    const messages = [];
     let turns = 0;
     let isBusy = false;
     let rewardGranted = false;
@@ -1475,20 +982,6 @@
     let activeListenButton = null;
     let audioIndicatorTimer = null;
     let lastMessageRole = null;
-
-    function persistChatHistory() {
-      while (messages.length > chatHistoryLimit) messages.shift();
-      while (transcript.length > transcriptHistoryLimit) transcript.shift();
-      try {
-        localStorage.setItem(chatHistoryKey, JSON.stringify({
-          messages,
-          transcript,
-          options: suggestedResponses.slice(0, 3).map(({ de, ar }) => ({ de, ar }))
-        }));
-      } catch (error) {
-        console.warn(`Could not save chat history for NPC "${npcKey}".`, error);
-      }
-    }
 
     function shouldStickToBottom() {
       return historyElement.scrollHeight - historyElement.scrollTop - historyElement.clientHeight < 72;
@@ -1578,13 +1071,6 @@
 
       row.appendChild(message);
       historyElement.appendChild(row);
-      transcript.push({
-        role,
-        content: germanText,
-        translation: translation || '',
-        suggestedTranslation: suggestedTranslation || '',
-        translationLanguage: options.translationLanguage || language
-      });
       scrollToBottomIfPinned(wasPinned);
       return { row, germanContent, german };
     }
@@ -1853,8 +1339,7 @@
           body: JSON.stringify({
             npcKey,
             language,
-            messages: messages.slice(-chatHistoryLimit),
-            npcInitiated: Boolean(initiatedByNpc),
+            messages,
             gameLocation: window.GermanWorldLocation || null
           }),
           signal: requestController.signal
@@ -1867,9 +1352,7 @@
               ? copy.serviceBusy
               : response.status === 504
                 ? copy.replyTimeout
-                : result?.code === 'INVALID_REPLY'
-                  ? copy.invalidReply
-                  : copy.connectionError;
+              : copy.connectionError;
           throw new Error(errorMessage);
         }
         const reply = typeof result?.reply === 'string'
@@ -1881,7 +1364,7 @@
         const germanReply = reply.de.trim();
         const arabicReply = typeof reply.ar === 'string' ? reply.ar.trim() : '';
 
-        if (userText || messages.length === 0 || initiatedByNpc) {
+        if (userText || messages.length === 0) {
           messages.push({ role: 'assistant', content: germanReply });
         }
         typingIndicator.remove();
@@ -1894,7 +1377,6 @@
         );
         typewriteMessage(assistantMessage, germanReply);
         renderSuggestions(reply.options);
-        persistChatHistory();
         statusElement.textContent = '';
         statusElement.classList.remove('is-error');
         if (input.value.trim() === userText) {
@@ -1919,7 +1401,6 @@
           if (userMessage) {
             userMessage.row.remove();
             messages.pop();
-            transcript.pop();
             turns -= 1;
             lastMessageRole = messages.length ? messages[messages.length - 1].role : null;
           }
@@ -2006,21 +1487,7 @@
     }
 
     window.addEventListener('keydown', onGlobalKeyDown);
-    if (storedChatHistory) {
-      storedChatHistory.transcript.forEach((entry) => {
-        appendMessage(
-          entry.role,
-          entry.content,
-          entry.translation,
-          entry.suggestedTranslation,
-          { translationLanguage: entry.translationLanguage }
-        );
-      });
-      renderSuggestions(storedChatHistory.options);
-      if (initiatedByNpc) sendMessage('');
-    } else {
-      sendMessage('');
-    }
+    sendMessage('');
   }
 
   // 12. Perform Job
@@ -2067,9 +1534,6 @@
 
   // 14. Initialize
   function init() {
-    syncDayPeriod();
-    window.setInterval(syncDayPeriod, 10_000);
-    document.addEventListener('visibilitychange', syncDayPeriod);
     renderLifeHUD();
     renderWorldNPCBeacon();
     console.log('✅ German Life Simulator (Deutsches Lebens-System) active!');
@@ -2087,9 +1551,7 @@
     JOBS,
     PROPERTIES,
     openLifeModal,
-    openNPCConversation,
-    getDueMeeting,
-    completeNPCMeeting
+    openNPCConversation
   };
 
 })();

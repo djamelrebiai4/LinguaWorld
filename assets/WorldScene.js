@@ -17,7 +17,9 @@ import {
   P as Physics
 } from './physics-vendor-HODa8zue.js';
 import {
-  G as collisionGroups
+  G as collisionGroups,
+  d as EffectComposer,
+  a as SSAO
 } from './CollisionConfig-_pz6FJXP.js';
 import { d as audio, I as ObjectInteraction } from './index-C2Y9NDyy.js';
 
@@ -123,24 +125,13 @@ function createCityMap(language) {
   header.className = 'lw-city-map-header';
   const heading = document.createElement('strong');
   heading.textContent = language === 'ar' ? 'خريطة المدينة' : 'Town map';
-  const headerActions = document.createElement('div');
-  headerActions.className = 'lw-city-map-header-actions';
-  const legendToggle = document.createElement('button');
-  legendToggle.type = 'button';
-  legendToggle.className = 'lw-city-map-icon-button lw-city-map-legend-toggle';
-  legendToggle.title = language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend';
-  legendToggle.setAttribute('aria-label', legendToggle.title);
-  legendToggle.setAttribute('aria-expanded', 'false');
-  legendToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>';
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = 'lw-city-map-icon-button lw-city-map-toggle';
+  toggle.className = 'lw-city-map-toggle';
+  toggle.textContent = '−';
   toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
   toggle.setAttribute('aria-expanded', 'true');
-  toggle.title = toggle.getAttribute('aria-label');
-  toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-  headerActions.append(legendToggle, toggle);
-  header.append(heading, headerActions);
+  header.append(heading, toggle);
 
   const body = document.createElement('div');
   body.className = 'lw-city-map-body';
@@ -239,7 +230,6 @@ function createCityMap(language) {
 
   const legend = document.createElement('div');
   legend.className = 'lw-city-map-legend';
-  legend.hidden = true;
   const legendItems = [
     { label: language === 'ar' ? 'أنت' : 'You', color: '#ffb36b', player: true },
     ...CITY_PORTALS.map((portal) => ({
@@ -260,58 +250,20 @@ function createCityMap(language) {
     legend.appendChild(item);
   });
 
-  const expandToggle = document.createElement('button');
-  expandToggle.type = 'button';
-  expandToggle.className = 'lw-city-map-icon-button lw-city-map-expand';
-  expandToggle.title = language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map';
-  expandToggle.setAttribute('aria-label', expandToggle.title);
-  expandToggle.setAttribute('aria-expanded', 'false');
-  expandToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
-  body.append(map, compass, legend, expandToggle);
+  body.append(map, compass, legend);
   panel.append(header, body);
   toggle.addEventListener('click', (event) => {
     event.stopPropagation();
     const collapsed = panel.classList.toggle('is-collapsed');
-    if (collapsed) panel.classList.remove('is-expanded');
     body.hidden = collapsed;
+    toggle.textContent = collapsed ? '+' : '−';
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    const label = collapsed
-      ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
-      : language === 'ar' ? 'طي الخريطة' : 'Collapse map';
-    toggle.setAttribute('aria-label', label);
-    toggle.title = label;
-    toggle.innerHTML = collapsed
-      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>'
-      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-  });
-  legendToggle.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const isOpen = panel.classList.toggle('is-legend-open');
-    legend.hidden = !isOpen;
-    legendToggle.setAttribute('aria-expanded', String(isOpen));
-    legendToggle.title = isOpen
-      ? language === 'ar' ? 'إخفاء مفتاح الخريطة' : 'Hide map legend'
-      : language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend';
-    legendToggle.setAttribute('aria-label', legendToggle.title);
-  });
-  expandToggle.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const isExpanded = !panel.classList.contains('is-expanded');
-    panel.classList.toggle('is-expanded', isExpanded);
-    panel.classList.remove('is-collapsed');
-    body.hidden = false;
-    toggle.setAttribute('aria-expanded', 'true');
-    toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
-    toggle.title = toggle.getAttribute('aria-label');
-    toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-    expandToggle.setAttribute('aria-expanded', String(isExpanded));
-    expandToggle.title = isExpanded
-      ? language === 'ar' ? 'تصغير الخريطة' : 'Shrink map'
-      : language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map';
-    expandToggle.setAttribute('aria-label', expandToggle.title);
-    expandToggle.innerHTML = isExpanded
-      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v5H3m13-5v5h5M3 16h5v5m8-5h5v5h-5"/></svg>'
-      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>';
+    toggle.setAttribute(
+      'aria-label',
+      collapsed
+        ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
+        : language === 'ar' ? 'طي الخريطة' : 'Collapse map'
+    );
   });
   ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach((eventName) => {
     panel.addEventListener(eventName, (event) => event.stopPropagation());
@@ -997,7 +949,7 @@ const WORLD_NPCS = {
     npcKey: 'maria',
     name: { ar: 'ماريا فيشر', en: 'Maria Fischer' },
     model: 'Ranger',
-    path: [{ x: -6, z: 10 }, { x: 4, z: 10 }, { x: 4, z: 14 }, { x: -6, z: 14 }],
+    path: [{ x: -6, z: 2 }, { x: 4, z: 2 }, { x: 4, z: 7 }, { x: -6, z: 7 }],
     speed: 0.9,
     walkAnimation: 'Walking_A',
     activityAnimation: 'Interact',
@@ -1105,9 +1057,7 @@ function NPCCharacter({
   onPosition,
   playerBody,
   isPaused,
-  isEngaged,
-  isApproaching,
-  isWaitingForInteraction
+  isEngaged
 }) {
   const { scene } = useGLTF(`/Grounds/NPC/${npc.model}.glb`, true);
   const groupRef = React.useRef(null);
@@ -1164,21 +1114,7 @@ function NPCCharacter({
     if (!group || hasLeft.current) return;
 
     let walking = false;
-    if (!isPaused && !isEngaged && isApproaching) {
-      const player = playerBody.current && playerBody.current.translation();
-      if (player) {
-        const dx = player.x - group.position.x;
-        const dz = player.z - group.position.z;
-        const distance = Math.hypot(dx, dz);
-        group.rotation.y = Math.atan2(dx, dz);
-        if (distance > 3.2) {
-          const step = Math.min(distance - 3.2, npc.speed * delta);
-          group.position.x += (dx / distance) * step;
-          group.position.z += (dz / distance) * step;
-          walking = true;
-        }
-      }
-    } else if (!isPaused && !isEngaged && !isWaitingForInteraction && npc.path.length > 1) {
+    if (!isPaused && !isEngaged && npc.path.length > 1) {
       if (waitTime.current > 0) {
         waitTime.current = Math.max(0, waitTime.current - delta);
       } else {
@@ -1206,7 +1142,7 @@ function NPCCharacter({
       }
     }
 
-    if (isEngaged || isWaitingForInteraction) {
+    if (isEngaged) {
       const player = playerBody.current && playerBody.current.translation();
       if (player) {
         const dx = player.x - group.position.x;
@@ -1219,8 +1155,6 @@ function NPCCharacter({
     if (isPaused) return;
     const mode = isEngaged
       ? 'interact'
-      : isWaitingForInteraction && !walking
-        ? 'idle'
       : walking
         ? 'walk'
         : npc.activityAnimation
@@ -1270,17 +1204,12 @@ function WorldExplorer({
   const [nearbyPortal, setNearbyPortal] = React.useState(null);
   const [nearbyNpc, setNearbyNpc] = React.useState(null);
   const [engagedNpcKey, setEngagedNpcKey] = React.useState(null);
-  const [approachingNpcId, setApproachingNpcId] = React.useState(null);
-  const [invitingNpcId, setInvitingNpcId] = React.useState(null);
-  const [meetingNpcId, setMeetingNpcId] = React.useState(null);
   const [npcSpeech, setNpcSpeech] = React.useState(null);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
   const currentPortal = React.useRef(null);
   const currentNpc = React.useRef(null);
   const npcPositions = React.useRef(new Map());
-  const npcApproachCooldowns = React.useRef(new Map());
-  const dismissedNpcId = React.useRef(null);
   const speechBubbleElement = React.useRef(null);
   const interactionPromptElement = React.useRef(null);
   const interactionPromptNpcId = React.useRef(null);
@@ -1333,22 +1262,6 @@ function WorldExplorer({
   }, [language, level]);
 
   React.useEffect(() => {
-    if (level !== 1) return undefined;
-    const onMapShortcut = (event) => {
-      if (event.repeat || event.key.toLowerCase() !== 'm' || chatOpen.current) return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (target && target.closest('input, textarea, select, button, [contenteditable="true"]')) {
-        return;
-      }
-      if (!cityMapElement.current) return;
-      event.preventDefault();
-      cityMapElement.current.hidden = !cityMapElement.current.hidden;
-    };
-    window.addEventListener('keydown', onMapShortcut);
-    return () => window.removeEventListener('keydown', onMapShortcut);
-  }, [level]);
-
-  React.useEffect(() => {
     const location = {};
     window.GermanWorldLocation = location;
     return () => {
@@ -1373,16 +1286,6 @@ function WorldExplorer({
     const onChatState = (event) => {
       chatOpen.current = Boolean(event.detail && event.detail.open);
       setEngagedNpcKey(chatOpen.current ? event.detail.npcKey : null);
-      if (!chatOpen.current && event.detail?.npcKey) {
-        const npc = activeNpcs.find((entry) => entry.npcKey === event.detail.npcKey);
-        if (npc) {
-          npcApproachCooldowns.current.set(npc.id, Date.now() + 60_000);
-          dismissedNpcId.current = npc.id;
-        }
-      }
-      setApproachingNpcId(null);
-      setInvitingNpcId(null);
-      setMeetingNpcId(null);
       if (interactionPromptElement.current) {
         interactionPromptElement.current.style.display = chatOpen.current ? 'none' : '';
       }
@@ -1396,20 +1299,6 @@ function WorldExplorer({
       window.removeEventListener('german-npc-speech', onNpcSpeech);
       window.removeEventListener('german-npc-chat-state', onChatState);
     };
-  }, [activeNpcs]);
-
-  React.useEffect(() => {
-    const updateDueMeeting = () => {
-      if (chatOpen.current) return;
-      const life = window.GermanLife;
-      const dueNpc = typeof life?.getDueMeeting === 'function'
-        ? activeNpcs.find((npc) => npc.npcKey && life.getDueMeeting(npc.npcKey))
-        : null;
-      setMeetingNpcId(dueNpc ? dueNpc.id : null);
-    };
-    updateDueMeeting();
-    const interval = window.setInterval(updateDueMeeting, 2000);
-    return () => window.clearInterval(interval);
   }, [activeNpcs]);
 
   React.useEffect(() => {
@@ -1534,9 +1423,6 @@ function WorldExplorer({
     let match = null;
     let closestNpc = null;
     let closestNpcDistance = 4.5;
-    let approachCandidate = null;
-    let approachCandidateDistance = Infinity;
-    let approachCandidateIsMeeting = false;
 
     activeNpcs.forEach((npc) => {
       if (!npc.npcKey) return;
@@ -1547,64 +1433,7 @@ function WorldExplorer({
         closestNpc = npc;
         closestNpcDistance = distance;
       }
-      const isMeeting = npc.id === meetingNpcId;
-      const cooldownUntil = npcApproachCooldowns.current.get(npc.id) || 0;
-      if (!isMeeting && cooldownUntil > Date.now()) return;
-      const approachRange = isMeeting ? 18 : 12;
-      if (distance >= 4.5 && distance < approachRange) {
-        const preferred = isMeeting && !approachCandidateIsMeeting;
-        const samePriorityAndCloser = isMeeting === approachCandidateIsMeeting
-          && distance < approachCandidateDistance;
-        if (preferred || samePriorityAndCloser) {
-          approachCandidate = npc;
-          approachCandidateDistance = distance;
-          approachCandidateIsMeeting = isMeeting;
-        }
-      }
     });
-
-    if (dismissedNpcId.current) {
-      const dismissedPosition = npcPositions.current.get(dismissedNpcId.current);
-      if (!dismissedPosition || Math.hypot(
-        player.x - dismissedPosition.x,
-        player.z - dismissedPosition.z
-      ) >= 4.5) {
-        dismissedNpcId.current = null;
-      } else if (closestNpc?.id === dismissedNpcId.current) {
-        closestNpc = null;
-        closestNpcDistance = 4.5;
-      }
-    }
-
-    if (invitingNpcId) {
-      const invitedPosition = npcPositions.current.get(invitingNpcId);
-      if (!invitedPosition || Math.hypot(
-        player.x - invitedPosition.x,
-        player.z - invitedPosition.z
-      ) > 18) {
-        npcApproachCooldowns.current.set(invitingNpcId, Date.now() + 60_000);
-        setInvitingNpcId(null);
-        setApproachingNpcId(null);
-      }
-    } else if (!chatOpen.current && approachCandidate) {
-      setInvitingNpcId(approachCandidate.id);
-      setApproachingNpcId(approachCandidate.id);
-    }
-
-    if (invitingNpcId) {
-      const invitedNpc = activeNpcs.find((npc) => npc.id === invitingNpcId);
-      const invitedPosition = npcPositions.current.get(invitingNpcId);
-      if (invitedNpc && invitedPosition && Math.hypot(
-        player.x - invitedPosition.x,
-        player.z - invitedPosition.z
-      ) < closestNpcDistance) {
-        closestNpc = invitedNpc;
-        closestNpcDistance = Math.hypot(
-          player.x - invitedPosition.x,
-          player.z - invitedPosition.z
-        );
-      }
-    }
 
     if (!closestNpc && level === 1) {
       match = CITY_PORTALS.find((portal) => {
@@ -1651,17 +1480,13 @@ function WorldExplorer({
 
   const talkToNpc = React.useCallback((npc) => {
     if (!npc || !npc.npcKey) return;
-    const life = window.GermanLife;
-    const openConversation = life && life.openNPCConversation;
+    const openConversation = window.GermanLife && window.GermanLife.openNPCConversation;
     if (typeof openConversation !== 'function') {
       console.error(`NPC conversation is unavailable for "${npc.npcKey}".`);
       return;
     }
-    if (typeof life.completeNPCMeeting === 'function') {
-      life.completeNPCMeeting(npc.npcKey);
-    }
     if (document.pointerLockElement) document.exitPointerLock();
-    openConversation(npc.npcKey, { initiatedByNpc: true });
+    openConversation(npc.npcKey);
   }, []);
 
   React.useEffect(() => {
@@ -1691,19 +1516,12 @@ function WorldExplorer({
         : `ادخل إلى ${nearbyPortal.title[language]}`
     : '';
   const buttonText = language === 'en' ? 'Enter' : 'دخول';
-  const isMeetingPrompt = Boolean(nearbyNpc && meetingNpcId === nearbyNpc.id);
   const npcText = nearbyNpc
-    ? isMeetingPrompt
-      ? language === 'en'
-        ? `Meeting with ${nearbyNpc.name.en}`
-        : `موعدك مع ${nearbyNpc.name.ar}`
-      : language === 'en'
-        ? `${nearbyNpc.name.en} has a question for you`
-        : `${nearbyNpc.name.ar} يريد أن يسألك شيئًا`
+    ? language === 'en'
+      ? `Talk with ${nearbyNpc.name.en}`
+      : `تحدث مع ${nearbyNpc.name.ar}`
     : '';
-  const npcButtonText = isMeetingPrompt
-    ? language === 'en' ? 'Meet' : 'لقاء'
-    : language === 'en' ? 'Talk' : 'تحدث';
+  const npcButtonText = language === 'en' ? 'Talk' : 'تحدث';
 
   React.useEffect(() => {
     if (!nearbyNpc && !nearbyPortal) return undefined;
@@ -1785,9 +1603,7 @@ function WorldExplorer({
       onPosition: updateNpcPosition,
       playerBody,
       isPaused: isPaused || isLoading,
-      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey,
-      isApproaching: npc.id === approachingNpcId,
-      isWaitingForInteraction: npc.id === invitingNpcId
+      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey
     })),
   );
 }
@@ -1831,6 +1647,10 @@ export default function WorldScene({
           onObjectClick,
           isPaused,
           isMobile
-        })))
+        }))),
+    !isMobile
+      ? h(EffectComposer, { disableNormalPass: true },
+        h(SSAO, { aoRadius: 2, intensity: 2, color: 'black' }))
+      : null
   );
 }

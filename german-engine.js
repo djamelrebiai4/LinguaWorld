@@ -297,17 +297,6 @@
       if (xpEl) xpEl.textContent = `${this.xp} XP`;
       const lvlEl = document.getElementById('de-hud-lvl-val');
       if (lvlEl) lvlEl.textContent = this.getLevelName();
-      const progressFill = document.getElementById('de-hud-xp-progress-fill');
-      const progressTrack = document.getElementById('de-hud-xp-progress');
-      if (progressFill && progressTrack) {
-        const levelStart = [0, 0, 200, 500, 1000][this.level] || 0;
-        const levelEnd = [0, 200, 500, 1000, 1000][this.level] || 200;
-        const progress = levelEnd > levelStart
-          ? Math.max(0, Math.min(100, (this.xp - levelStart) / (levelEnd - levelStart) * 100))
-          : 100;
-        progressFill.style.width = `${progress}%`;
-        progressTrack.setAttribute('aria-valuenow', String(Math.round(progress)));
-      }
     }
   };
   State.calcLevel();
@@ -366,9 +355,7 @@
     toast.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
     toast.lang = getSupportLanguage();
     const icon = document.createElement('span');
-    icon.className = 'de-toast-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 3.5 14.4 9l6 .5-4.5 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9-4.5-3.9 6-.5L12 3.5Z"/></svg>';
+    icon.textContent = '🇩🇪';
     const content = document.createElement('span');
     content.textContent = message;
     toast.append(icon, content);
@@ -376,12 +363,10 @@
 
     setTimeout(() => {
       toast.style.opacity = '0';
-      toast.style.transform = document.body.classList.contains('de-game-world')
-        ? 'translate(-50%, 20px)'
-        : 'translateY(20px)';
+      toast.style.transform = 'translateY(20px)';
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    }, 3200);
   }
 
   // 8. Detect Current World
@@ -407,20 +392,14 @@
     hud.className = 'de-hud-bar';
     hud.innerHTML = `
       <div class="de-hud-stats">
-        <div class="de-hud-lang" aria-label="Deutsch">
-          <span class="de-german-flag" aria-hidden="true"><i></i><i></i><i></i></span>
-        </div>
-        <div class="de-hud-level">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Zm0 2H5v2a3 3 0 0 0 3 3m8-5h3v2a3 3 0 0 1-3 3m-4 2v4m-4 3h8m-7-3h6"/></svg>
-          <span id="de-hud-lvl-val">${State.getLevelName()}</span>
+        <div class="de-hud-lang">
+          <span>🇩🇪</span> <span>Deutsch</span>
         </div>
         <div class="de-hud-xp">
-          <span id="de-hud-xp-val">${State.xp} XP</span>
-          <span class="de-hud-xp-track" id="de-hud-xp-progress" role="progressbar"
-            aria-label="${getSupportLanguage() === 'en' ? 'Progress to next level' : 'التقدم نحو المستوى التالي'}"
-            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <span id="de-hud-xp-progress-fill"></span>
-          </span>
+          <span>⭐</span> <span id="de-hud-xp-val">${State.xp} XP</span>
+        </div>
+        <div class="de-hud-level">
+          <span>🏆</span> <span id="de-hud-lvl-val">${State.getLevelName()}</span>
         </div>
         <label class="de-language-control">
           <span id="de-support-language-label">${copy('supportLanguage')}</span>
@@ -431,34 +410,17 @@
         </label>
       </div>
       <div class="de-hud-actions" role="group" aria-label="${activityGroupLabel}">
-        <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn"
-          title="${getSupportLanguage() === 'en' ? 'Start an interactive German conversation' : 'بدء محادثة ألمانية تفاعلية'}"
-          aria-label="Dialoge">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a7.5 7.5 0 1 1 17-3.5Z"/><path d="M8 11h8m-8 3h5"/></svg>
-          <span>Dialoge</span>
+        <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
+        <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}">
+          <span>🎮</span> <span>Der Die Das</span>
         </button>
-        <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}" aria-label="${copy('challenge')}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 3.8 5.2l-1 3a2 2 0 0 1-3.3.8L14 14h-4l-2.5 3a2 2 0 0 1-3.3-.8l-1-3A4 4 0 0 1 7 8Z"/><path d="M7 10v4m-2-2h4m7-1h.01M18 13h.01"/></svg>
-          <span>Der Die Das</span>
-        </button>
-        <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn"
-          title="${copy('reviewVocabulary')}" aria-label="${copy('reviewVocabulary')}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21V5.5Z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20M8 7h8m-8 4h8"/></svg>
-          <span>${copy('reviewVocabulary')}</span>
+        <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="${copy('reviewVocabulary')}">
+          <span aria-hidden="true">📚</span> <span>${copy('reviewVocabulary')}</span>
         </button>
       </div>
     `;
     document.body.appendChild(hud);
-    const homeButton = document.querySelector('.home-button');
-    if (homeButton) {
-      const homeLabel = getSupportLanguage() === 'en' ? 'Home' : 'الرئيسية';
-      homeButton.title = homeLabel;
-      if (!homeButton.hasAttribute('aria-label')) homeButton.setAttribute('aria-label', homeLabel);
-    }
     hud.querySelector('#de-support-language').value = getSupportLanguage();
-    const settingsPopover = document.querySelector('.de-hud-settings-popover');
-    if (settingsPopover) settingsPopover.append(hud.querySelector('.de-language-control'));
-    State.updateHUD();
 
     document.getElementById('de-launch-dialogue-btn').addEventListener('click', () => {
       const w = detectWorld() || 'Supermarket';
@@ -467,12 +429,6 @@
     document.getElementById('de-review-vocab-btn').addEventListener('click', openVocabularyReview);
     document.getElementById('de-launch-game-btn').addEventListener('click', () => {
       openDerDieDasGame();
-    });
-    const learningButtons = [...hud.querySelectorAll('.de-hud-actions .de-hud-btn')];
-    learningButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        learningButtons.forEach((tab) => tab.classList.toggle('is-active', tab === button));
-      });
     });
     document.getElementById('de-support-language').addEventListener('change', (event) => {
       setSupportLanguage(event.target.value);
@@ -555,31 +511,27 @@
 
     const completedCount = quest.tasks.filter(t => t.completed).length;
     const progressPercent = Math.round((completedCount / quest.tasks.length) * 100);
-    const expanded = localStorage.getItem('lw_mission_expanded') === 'true';
 
     const widget = document.createElement('div');
     widget.id = 'de-quest-hud';
     widget.className = 'de-quest-widget';
-    widget.classList.toggle('is-expanded', expanded);
-    widget.dataset.completedCount = String(completedCount);
     widget.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
     widget.lang = getSupportLanguage();
     widget.innerHTML = `
-      <button class="de-quest-header" type="button" aria-expanded="${expanded}"
-        aria-controls="de-quest-tasks">
+      <div class="de-quest-header">
         <div class="de-quest-title">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8v-17Z"/><path d="M9 8h6m-6 4h6"/></svg>
-          <span>${quest.title}</span>
+          <span>📜</span> <span>${quest.title}</span>
         </div>
-        <span class="de-quest-count" id="de-quest-count">${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'en' ? 'words' : 'كلمات'}</span>
-      </button>
+        <span style="font-size:12px; font-weight:800; color:#10b981;">+${quest.rewardXP} XP</span>
+      </div>
+      <div class="de-quest-ar" id="de-quest-subtitle">${getQuestTranslation(quest)}</div>
       <div class="de-quest-progress-bar">
         <div class="de-quest-progress-fill" id="de-quest-bar" style="width: ${progressPercent}%;"></div>
       </div>
       <div class="de-quest-list" id="de-quest-tasks">
         ${quest.tasks.map(t => `
           <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-            <span><i class="de-quest-item-status${t.completed ? ' is-completed' : ''}" aria-hidden="true"></i>${t.de} (${getTaskTranslation(t)})</span>
+            <span>${t.completed ? '✅' : '⚪'} ${t.de} (${getTaskTranslation(t)})</span>
             <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
               ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
             </span>
@@ -588,11 +540,6 @@
       </div>
     `;
     document.body.appendChild(widget);
-    widget.querySelector('.de-quest-header').addEventListener('click', () => {
-      const isExpanded = widget.classList.toggle('is-expanded');
-      widget.querySelector('.de-quest-header').setAttribute('aria-expanded', String(isExpanded));
-      localStorage.setItem('lw_mission_expanded', String(isExpanded));
-    });
   }
 
   function getQuestTranslation(quest) {
@@ -684,23 +631,10 @@
     const completedCount = quest.tasks.filter(t => t.completed).length;
     const progressPercent = Math.round((completedCount / quest.tasks.length) * 100);
     barEl.style.width = `${progressPercent}%`;
-    const countEl = document.getElementById('de-quest-count');
-    if (countEl) {
-      countEl.textContent = `${completedCount}/${quest.tasks.length} ${
-        getSupportLanguage() === 'en' ? 'words' : 'كلمات'
-      }`;
-    }
-    const previousCount = Number(widget && widget.dataset.completedCount);
-    if (widget && completedCount > previousCount) {
-      widget.classList.remove('is-progress-pulse');
-      void widget.offsetWidth;
-      widget.classList.add('is-progress-pulse');
-    }
-    if (widget) widget.dataset.completedCount = String(completedCount);
 
     tasksEl.innerHTML = quest.tasks.map(t => `
       <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-        <span><i class="de-quest-item-status${t.completed ? ' is-completed' : ''}" aria-hidden="true"></i>${t.de} (${getTaskTranslation(t)})</span>
+        <span>${t.completed ? '✅' : '⚪'} ${t.de} (${getTaskTranslation(t)})</span>
         <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
           ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
         </span>
@@ -1487,20 +1421,8 @@
       supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية'
     );
     const label = document.createElement('span');
-    label.className = 'de-world-dialogue-label';
-    label.textContent = supportLanguage === 'en' ? 'Conversation' : 'محادثة';
-    label.dir = supportLanguage === 'en' ? 'ltr' : 'rtl';
-    const topic = document.createElement('bdi');
-    topic.className = 'de-world-dialogue-topic';
-    topic.lang = 'de';
-    topic.dir = 'ltr';
-    topic.textContent = (DIALOGUES[world]?.title || 'Gespräch').split(/\s+/)[0];
-    topic.setAttribute('aria-label', topic.textContent);
-    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    icon.setAttribute('viewBox', '0 0 24 24');
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = '<path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a7.5 7.5 0 1 1 17-3.5Z"/><path d="M8 11h8m-8 3h5"/>';
-    trigger.append(icon, label, topic);
+    label.textContent = supportLanguage === 'en' ? '💬 Talk with an NPC' : '💬 تحدث مع شخصية';
+    trigger.appendChild(label);
     trigger.addEventListener('click', () => {
       const life = window.GermanLife;
       const npcKey = life && life.NPCS
@@ -1529,50 +1451,12 @@
 
   // 16. Initialize everything on load
   function init() {
-    if (detectWorld()) document.body.classList.add('de-game-world');
     renderHUD();
     renderQuestWidget();
     setupGermanOnlyHome();
     renderCrosshair();
     renderWorldDialogueTrigger();
     setupObjectListeners();
-    window.addEventListener('keydown', (event) => {
-      if (event.repeat) return;
-      if (!document.body.classList.contains('de-game-world')) return;
-      if (event.key === 'Escape') {
-        const settings = document.querySelector('.de-hud-top-right.is-settings-open');
-        const settingsButton = document.getElementById('de-hud-settings-button');
-        const expandedMap = document.querySelector('.lw-city-map.is-expanded');
-        const mapExpand = expandedMap && expandedMap.querySelector('.lw-city-map-expand');
-        const legend = document.querySelector('.lw-city-map.is-legend-open .lw-city-map-legend-toggle');
-        if (settings && settingsButton) settingsButton.click();
-        if (mapExpand) mapExpand.click();
-        if (legend) legend.click();
-        if (settings || mapExpand || legend) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
-        return;
-      }
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest('input, textarea, select, button, [contenteditable="true"]')) return;
-      if (document.body.classList.contains('npc-chat-open')) return;
-      if (event.key.toLowerCase() === 'h') {
-        const hint = document.getElementById('de-hud-hint-button')
-          || document.querySelector('.tutorial-toggle-btn');
-        if (hint) {
-          event.preventDefault();
-          hint.click();
-        }
-      } else if (event.key.toLowerCase() === 'p') {
-        const pause = document.getElementById('de-hud-pause-button')
-          || document.querySelector('.pause-btn');
-        if (pause) {
-          event.preventDefault();
-          pause.click();
-        }
-      }
-    });
     console.log('✅ German Learning Engine (Deutsche Lern-Engine) active!');
   }
 
