@@ -27,6 +27,9 @@ import { loadSmartPlaceSystem } from '../scripts/smart-place-system.js';
 import { CityNavigationGraph, ResidentNavigationManager } from '../scripts/living-town-navigation.js';
 
 const h = React.createElement;
+const LOW_POWER_RENDERING = typeof navigator !== 'undefined' && (
+  /Firefox/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 4) <= 4
+);
 let sharedLivingTownSimulation = null;
 
 const CITY_PORTALS = [
@@ -747,7 +750,7 @@ function useWorldModel(modelPath, collisionPath, collisionNode, playerStart, onP
       if (object.isMesh) {
         const isCityModel = modelPath === '/Grounds/LinguaCity.glb';
         object.receiveShadow = isCityModel;
-        object.castShadow = isCityModel &&
+        object.castShadow = isCityModel && !LOW_POWER_RENDERING &&
           !/ground|sea|street|canal|boundary|asphalt|sidewalk|road|grass|collision|^I_/i.test(object.name);
         if (materials.MazeMat) object.material = materials.MazeMat;
       }
@@ -809,7 +812,7 @@ function CityWorld({ onPositionsReady, isPaused }) {
       position: [-80, 150, 90],
       intensity: 1.7,
       color: 0xffedcf,
-      castShadow: true,
+      castShadow: !LOW_POWER_RENDERING,
       'shadow-mapSize-width': 1024,
       'shadow-mapSize-height': 1024,
       'shadow-camera-near': 1,
@@ -1366,7 +1369,7 @@ function NPCCharacter({
     model.traverse((node) => {
       if (node.name) lookup.set(node.name, node);
       if (node.isMesh || node.isSkinnedMesh) {
-        node.castShadow = true;
+        node.castShadow = false;
         node.receiveShadow = false;
       }
     });
@@ -1571,7 +1574,8 @@ function WorldExplorer({
 
     loadLivingTownSimulation({
       population: Number(localStorage.getItem('lw_town_population')) || undefined,
-      seed: localStorage.getItem('lw_town_seed') || undefined
+      seed: localStorage.getItem('lw_town_seed') || undefined,
+      aiThinkInterval: 0.8
     }).then((loadedSimulation) => {
       simulation = loadedSimulation;
       return loadSmartPlaceSystem().then((loadedPlaces) => {
@@ -1584,7 +1588,13 @@ function WorldExplorer({
         navigation = new ResidentNavigationManager(
           new CityNavigationGraph(),
           simulation,
-          { fixedActors: (WORLD_NPCS[1] || []).length }
+          {
+            fixedActors: (WORLD_NPCS[1] || []).length,
+            fullCap: isMobile || /Firefox/i.test(navigator.userAgent)
+              || (navigator.hardwareConcurrency || 4) <= 4
+              ? 10
+              : (navigator.hardwareConcurrency || 4) <= 8 ? 14 : 18
+          }
         );
         townNavigation.current = navigation;
         sharedLivingTownSimulation = simulation;
@@ -2031,7 +2041,9 @@ export default function WorldScene({
   isPaused,
   isMobile
 }) {
-  const [reducePostProcessing, setReducePostProcessing] = React.useState(false);
+  const [reducePostProcessing, setReducePostProcessing] = React.useState(() =>
+    isMobile || /Firefox/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 4) <= 4
+  );
   const qualityWindow = React.useRef({
     elapsed: 0,
     frames: 0,
@@ -2066,7 +2078,9 @@ export default function WorldScene({
     quality.elapsed = 0;
     quality.frames = 0;
     if (!reducePostProcessing && quality.slowSeconds >= 2) setReducePostProcessing(true);
-    else if (reducePostProcessing && quality.fastSeconds >= 8) setReducePostProcessing(false);
+    else if (reducePostProcessing && !LOW_POWER_RENDERING && !isMobile && quality.fastSeconds >= 8) {
+      setReducePostProcessing(false);
+    }
 
     const navigation = sharedLivingTownSimulation && window.LivingTownNavigation;
     if (navigation && quality.slowSeconds >= 2 && !quality.crowdReduced) {
