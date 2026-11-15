@@ -435,20 +435,76 @@
     hud.id = 'de-life-top-hud';
     hud.className = 'de-life-hud';
     hud.innerHTML = `
-      <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
-        <span>💶</span> <span id="de-life-money-val">${LifeState.money} €</span>
+      <div class="de-life-stats">
+        <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.7-.7-1.6-1-2.8-1-1.5 0-2.5.8-2.5 2s.9 1.8 2.5 2.2 2.5 1 2.5 2.2-1 2.1-2.8 2.1c-1.2 0-2.2-.4-3-1.2M12 5.5v13"/></svg>
+          <span id="de-life-money-val">${LifeState.money} €</span>
+        </div>
+        <div class="de-life-stat energy" title="مستوى الطاقة">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></svg>
+          <span id="de-life-energy-val">${LifeState.energy}%</span>
+        </div>
+        <div class="de-life-stat time" title="وقت اليوم">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <span id="de-life-time-val">${String(LifeState.timeOfDay).replace(/[☀️🌙]/gu, '').trim()}</span>
+        </div>
       </div>
-      <div class="de-life-stat energy" title="مستوى الطاقة">
-        <span>⚡</span> <span id="de-life-energy-val">${LifeState.energy}%</span>
-      </div>
-      <div class="de-life-stat" title="وقت اليوم">
-        <span id="de-life-time-val">${LifeState.timeOfDay}</span>
-      </div>
-      <button class="de-life-btn highlight" id="de-open-life-btn" title="افتح قائمة الحياة الاجتماعية والوظائف">
-        <span>🏙️</span> <span>Meine Welt (عالمي)</span>
-      </button>
     `;
     document.body.appendChild(hud);
+
+    const settings = document.createElement('div');
+    settings.className = 'lw-hud-settings';
+    settings.innerHTML = `
+      <button class="lw-settings-toggle" type="button" title="Settings" aria-label="Settings" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.8-.7a7.7 7.7 0 0 1-1.5.9l-.3 1.9h-2.8l-.3-1.9a7.7 7.7 0 0 1-1.5-.9l-1.8.7-1.4-2.4 1.4-1.1a7.3 7.3 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.8.7a7.7 7.7 0 0 1 1.5-.9l.3-1.9h2.8l.3 1.9a7.7 7.7 0 0 1 1.5.9l1.8-.7 1.4 2.4-1.4 1.1a7.3 7.3 0 0 1 0 1.8Z" transform="translate(-1 -1)"/></svg>
+      </button>
+      <section class="lw-settings-popover" aria-label="Settings" hidden>
+        <div class="lw-settings-language-slot"></div>
+        <div class="lw-settings-mobile-stats"></div>
+        <button class="de-life-btn" id="de-open-life-btn" type="button" title="افتح قائمة الحياة الاجتماعية والوظائف">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6M8 10h.01M16 10h.01"/></svg>
+          <span>Meine Welt</span><span lang="ar" dir="rtl">عالمي</span>
+        </button>
+      </section>
+    `;
+    document.body.appendChild(settings);
+
+    const settingsToggle = settings.querySelector('.lw-settings-toggle');
+    const settingsPopover = settings.querySelector('.lw-settings-popover');
+    const closeSettings = () => {
+      settingsPopover.hidden = true;
+      settings.classList.remove('is-open');
+      settingsToggle.setAttribute('aria-expanded', 'false');
+    };
+    settingsToggle.addEventListener('click', () => {
+      const open = settingsPopover.hidden;
+      settingsPopover.hidden = !open;
+      settings.classList.toggle('is-open', open);
+      settingsToggle.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', (event) => {
+      if (!settings.contains(event.target)) closeSettings();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeSettings();
+    });
+
+    const languageControl = document.querySelector('.de-language-control');
+    if (languageControl) settings.querySelector('.lw-settings-language-slot').appendChild(languageControl);
+    const statGroup = hud.querySelector('.de-life-stats');
+    const mobileStats = settings.querySelector('.lw-settings-mobile-stats');
+    const moneyStat = statGroup.querySelector('.de-life-stat.money');
+    const energyStat = statGroup.querySelector('.de-life-stat.energy');
+    const timeStat = statGroup.querySelector('.de-life-stat.time');
+    const syncMobileStats = () => {
+      if (window.matchMedia('(max-width: 720px)').matches) {
+        mobileStats.append(moneyStat, energyStat, timeStat);
+      } else {
+        statGroup.append(moneyStat, energyStat, timeStat);
+      }
+    };
+    syncMobileStats();
+    window.addEventListener('resize', syncMobileStats, { passive: true });
 
     document.getElementById('de-open-life-btn').addEventListener('click', () => {
       openLifeModal('friends');
@@ -476,7 +532,7 @@
     btn.dir = supportLanguage === 'ar' ? 'rtl' : 'ltr';
     btn.setAttribute('aria-label', supportLanguage === 'en' ? 'Talk with NPC' : 'فتح محادثة مع الشخصية');
     btn.innerHTML = `
-      <span class="de-world-npc-avatar" aria-hidden="true">${npc.avatar}</span>
+      <span class="de-world-npc-avatar" aria-hidden="true"></span>
       <span>${supportLanguage === 'en' ? 'Talk with' : 'تحدث مع'}</span>
       <bdi lang="en" dir="ltr">${npc.name.split(' ')[0]}</bdi>
     `;
@@ -950,6 +1006,7 @@
     `;
     document.body.appendChild(overlay);
     document.body.classList.add('npc-chat-open');
+    document.body.classList.add('chat-open');
     window.dispatchEvent(new CustomEvent('german-npc-chat-state', {
       detail: { open: true, npcKey }
     }));
@@ -1290,6 +1347,7 @@
         overlay.remove();
         if (!document.querySelector('.de-dialogue-overlay')) {
           document.body.classList.remove('npc-chat-open');
+          document.body.classList.remove('chat-open');
         }
       }, 220);
     }

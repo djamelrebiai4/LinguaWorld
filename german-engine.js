@@ -354,8 +354,10 @@
     toast.className = 'de-toast';
     toast.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
     toast.lang = getSupportLanguage();
-    const icon = document.createElement('span');
-    icon.textContent = '🇩🇪';
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = '<path d="M12 3v18M5 7h14M5 17h14" />';
     const content = document.createElement('span');
     content.textContent = message;
     toast.append(icon, content);
@@ -366,7 +368,7 @@
       toast.style.transform = 'translateY(20px)';
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
-    }, 3200);
+    }, 2500);
   }
 
   // 8. Detect Current World
@@ -393,13 +395,14 @@
     hud.innerHTML = `
       <div class="de-hud-stats">
         <div class="de-hud-lang">
-          <span>🇩🇪</span> <span>Deutsch</span>
-        </div>
-        <div class="de-hud-xp">
-          <span>⭐</span> <span id="de-hud-xp-val">${State.xp} XP</span>
+          <span class="de-flag" aria-hidden="true"><i></i><i></i><i></i></span> <span>Deutsch</span>
         </div>
         <div class="de-hud-level">
-          <span>🏆</span> <span id="de-hud-lvl-val">${State.getLevelName()}</span>
+          <span id="de-hud-lvl-val">${State.getLevelName()}</span>
+        </div>
+        <div class="de-hud-xp">
+          <span id="de-hud-xp-val">${State.xp} XP</span>
+          <span class="de-hud-xp-track" aria-hidden="true"><i></i></span>
         </div>
         <label class="de-language-control">
           <span id="de-support-language-label">${copy('supportLanguage')}</span>
@@ -410,12 +413,14 @@
         </label>
       </div>
       <div class="de-hud-actions" role="group" aria-label="${activityGroupLabel}">
-        <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية"><span>💬</span> <span>Dialoge</span></button>
+        <button class="de-hud-btn quest-btn" id="de-launch-dialogue-btn" title="بدء محادثة ألمانية تفاعلية" aria-label="Dialoge">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2 1.5-4A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg><span>Dialoge</span>
+        </button>
         <button class="de-hud-btn" id="de-launch-game-btn" title="${copy('challenge')}">
-          <span>🎮</span> <span>Der Die Das</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a4 4 0 0 1 3.8 5.2l-1 3A2.5 2.5 0 0 1 16 17l-2-2H10l-2 2a2.5 2.5 0 0 1-3.8-.8l-1-3A4 4 0 0 1 7 8Z"/><path d="M7 11v4M5 13h4M16 12h.01M18 14h.01"/></svg><span>Der Die Das</span>
         </button>
         <button class="de-hud-btn de-review-btn" id="de-review-vocab-btn" title="${copy('reviewVocabulary')}">
-          <span aria-hidden="true">📚</span> <span>${copy('reviewVocabulary')}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21V5.5Z"/><path d="M4 6h13M8 8h7M8 12h7"/></svg><span>${copy('reviewVocabulary')}</span>
         </button>
       </div>
     `;
@@ -512,34 +517,54 @@
     const completedCount = quest.tasks.filter(t => t.completed).length;
     const progressPercent = Math.round((completedCount / quest.tasks.length) * 100);
 
-    const widget = document.createElement('div');
+    const widget = document.createElement('section');
     widget.id = 'de-quest-hud';
-    widget.className = 'de-quest-widget';
+    widget.className = 'de-quest-widget collapsed';
     widget.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
     widget.lang = getSupportLanguage();
+    let expanded = false;
+    try {
+      expanded = localStorage.getItem('lw_hud_quest_expanded') === 'true';
+    } catch (error) {}
+    if (expanded) widget.classList.remove('collapsed');
+    document.body.classList.toggle('quest-expanded', expanded);
     widget.innerHTML = `
-      <div class="de-quest-header">
-        <div class="de-quest-title">
-          <span>📜</span> <span>${quest.title}</span>
-        </div>
-        <span style="font-size:12px; font-weight:800; color:#10b981;">+${quest.rewardXP} XP</span>
-      </div>
-      <div class="de-quest-ar" id="de-quest-subtitle">${getQuestTranslation(quest)}</div>
+      <button class="de-quest-header" type="button" aria-expanded="${expanded}">
+        <span class="de-quest-title"><span>${quest.title}</span></span>
+        <span class="de-quest-summary">
+          <span class="de-quest-count">${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'en' ? 'words' : 'كلمات'}</span>
+          <span class="de-quest-reward">+${quest.rewardXP} XP</span>
+        </span>
+      </button>
       <div class="de-quest-progress-bar">
         <div class="de-quest-progress-fill" id="de-quest-bar" style="width: ${progressPercent}%;"></div>
       </div>
-      <div class="de-quest-list" id="de-quest-tasks">
+      <div class="de-quest-ar" id="de-quest-subtitle" ${expanded ? '' : 'hidden'}>${getQuestTranslation(quest)}</div>
+      <div class="de-quest-list" id="de-quest-tasks" ${expanded ? '' : 'hidden'}>
         ${quest.tasks.map(t => `
           <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-            <span>${t.completed ? '✅' : '⚪'} ${t.de} (${getTaskTranslation(t)})</span>
+            <span class="de-quest-word"><bdi lang="de" dir="ltr">${t.de}</bdi><span lang="${getSupportLanguage()}" dir="${getSupportLanguage() === 'ar' ? 'rtl' : 'ltr'}">${getTaskTranslation(t)}</span></span>
             <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
-              ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
+              ${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}
             </span>
           </div>
         `).join('')}
       </div>
     `;
+    widget.dataset.completedCount = String(completedCount);
     document.body.appendChild(widget);
+    const header = widget.querySelector('.de-quest-header');
+    header.addEventListener('click', () => {
+      const nextExpanded = widget.classList.contains('collapsed');
+      widget.classList.toggle('collapsed', !nextExpanded);
+      document.body.classList.toggle('quest-expanded', nextExpanded);
+      header.setAttribute('aria-expanded', String(nextExpanded));
+      widget.querySelector('#de-quest-subtitle').hidden = !nextExpanded;
+      widget.querySelector('#de-quest-tasks').hidden = !nextExpanded;
+      try {
+        localStorage.setItem('lw_hud_quest_expanded', String(nextExpanded));
+      } catch (error) {}
+    });
   }
 
   function getQuestTranslation(quest) {
@@ -567,13 +592,18 @@
     germanWord.dir = 'ltr';
     germanWord.textContent = item.de;
 
-    const translation = document.createElement('bdi');
+    const translation = document.createElement('span');
     translation.className = 'de-object-word-translation';
     translation.lang = language;
     translation.dir = language === 'ar' ? 'rtl' : 'ltr';
     translation.textContent = getItemTranslation(item);
 
-    toast.append(germanWord, translation);
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = '<path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2 1.5-4A7.5 7.5 0 1 1 20 11.5Z" />';
+
+    toast.append(icon, translation, germanWord);
     document.body.appendChild(toast);
     worldObjectToastTimer = window.setTimeout(() => {
       toast.classList.add('is-leaving');
@@ -634,12 +664,21 @@
 
     tasksEl.innerHTML = quest.tasks.map(t => `
       <div class="de-quest-item ${t.completed ? 'completed' : ''}" data-key="${t.key}">
-        <span>${t.completed ? '✅' : '⚪'} ${t.de} (${getTaskTranslation(t)})</span>
+        <span class="de-quest-word"><bdi lang="de" dir="ltr">${t.de}</bdi><span lang="${getSupportLanguage()}" dir="${getSupportLanguage() === 'ar' ? 'rtl' : 'ltr'}">${getTaskTranslation(t)}</span></span>
         <span class="de-badge-${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}">
-          ${t.gender === 'maskulin' ? 'der ♂' : t.gender === 'feminin' ? 'die ♀' : 'das ⚲'}
+          ${t.gender === 'maskulin' ? 'der' : t.gender === 'feminin' ? 'die' : 'das'}
         </span>
       </div>
     `).join('');
+    const count = widget.querySelector('.de-quest-count');
+    if (count) count.textContent = `${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'en' ? 'words' : 'كلمات'}`;
+    const previousCount = Number(widget.dataset.completedCount || 0);
+    if (completedCount !== previousCount) {
+      widget.classList.remove('progress-pulse');
+      void widget.offsetWidth;
+      widget.classList.add('progress-pulse');
+    }
+    widget.dataset.completedCount = String(completedCount);
   }
 
   function openVocabularyReview() {
@@ -1420,9 +1459,14 @@
       'aria-label',
       supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية'
     );
+    trigger.title = supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية';
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = '<path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2 1.5-4A7.5 7.5 0 1 1 20 11.5Z" />';
     const label = document.createElement('span');
-    label.textContent = supportLanguage === 'en' ? '💬 Talk with an NPC' : '💬 تحدث مع شخصية';
-    trigger.appendChild(label);
+    label.textContent = trigger.title;
+    trigger.append(icon, label);
     trigger.addEventListener('click', () => {
       const life = window.GermanLife;
       const npcKey = life && life.NPCS

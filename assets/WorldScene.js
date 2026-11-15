@@ -125,13 +125,37 @@ function createCityMap(language) {
   header.className = 'lw-city-map-header';
   const heading = document.createElement('strong');
   heading.textContent = language === 'ar' ? 'خريطة المدينة' : 'Town map';
+  const controls = document.createElement('div');
+  controls.className = 'lw-city-map-controls';
+  const makeMapButton = (className, label, iconMarkup) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.innerHTML = iconMarkup;
+    return button;
+  };
+  const legendToggle = makeMapButton(
+    'lw-city-map-action lw-city-map-legend-toggle',
+    language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>'
+  );
+  legendToggle.setAttribute('aria-expanded', 'false');
+  const enlargeToggle = makeMapButton(
+    'lw-city-map-action lw-city-map-enlarge-toggle',
+    language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><path d="M8 8 3 3m13 5 5-5M8 16l-5 5m13-5 5 5"/></svg>'
+  );
+  enlargeToggle.setAttribute('aria-pressed', 'false');
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'lw-city-map-toggle';
   toggle.textContent = '−';
   toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
   toggle.setAttribute('aria-expanded', 'true');
-  header.append(heading, toggle);
+  controls.append(legendToggle, enlargeToggle, toggle);
+  header.append(heading, controls);
 
   const body = document.createElement('div');
   body.className = 'lw-city-map-body';
@@ -226,7 +250,13 @@ function createCityMap(language) {
 
   const compass = document.createElement('span');
   compass.className = 'lw-city-map-compass';
-  compass.textContent = language === 'ar' ? 'شمال ↑' : 'N ↑';
+  compass.textContent = language === 'ar' ? 'شمال' : 'North';
+  const compassIcon = svgElement('svg', {
+    viewBox: '0 0 24 24',
+    'aria-hidden': 'true'
+  });
+  compassIcon.appendChild(svgElement('path', { d: 'M12 3 6 21l6-4 6 4-6-18Z' }));
+  compass.prepend(compassIcon);
 
   const legend = document.createElement('div');
   legend.className = 'lw-city-map-legend';
@@ -252,6 +282,31 @@ function createCityMap(language) {
 
   body.append(map, compass, legend);
   panel.append(header, body);
+  legendToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const expanded = panel.classList.toggle('is-legend-open');
+    legendToggle.setAttribute('aria-expanded', String(expanded));
+    legendToggle.setAttribute(
+      'aria-label',
+      expanded
+        ? language === 'ar' ? 'إخفاء مفتاح الخريطة' : 'Hide map legend'
+        : language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend'
+    );
+  });
+  const closeEnlargedMap = () => {
+    panel.classList.remove('is-enlarged');
+    document.body.classList.remove('map-overlay-open');
+    enlargeToggle.setAttribute('aria-pressed', 'false');
+  };
+  enlargeToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const enlarged = panel.classList.toggle('is-enlarged');
+    document.body.classList.toggle('map-overlay-open', enlarged);
+    enlargeToggle.setAttribute('aria-pressed', String(enlarged));
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && panel.classList.contains('is-enlarged')) closeEnlargedMap();
+  });
   toggle.addEventListener('click', (event) => {
     event.stopPropagation();
     const collapsed = panel.classList.toggle('is-collapsed');
