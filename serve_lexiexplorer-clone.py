@@ -109,6 +109,23 @@ class Handler(SimpleHTTPRequestHandler):
         self.path = "/" + rel
         return super().do_GET()
 
+    def _resolve_case_insensitive_file(self, path):
+        """Resolve a requested path to the real file on disk even if case differs."""
+        rel = urllib.parse.unquote(path.split("?", 1)[0].split("#", 1)[0]).strip("/")
+        if not rel:
+            candidate = ROOT / "index.html"
+            return candidate if candidate.is_file() else None
+        parts = [p for p in rel.split("/") if p]
+        current = ROOT
+        for part in parts:
+            if not current.is_dir():
+                return None
+            matches = [child for child in current.iterdir() if child.name.lower() == part.lower()]
+            if not matches:
+                return None
+            current = matches[0]
+        return current if current.is_file() else None
+
     # -- matchers --------------------------------------------------------
     def _is_stub(self, path):
         lp = path.lower()
@@ -196,6 +213,9 @@ class Handler(SimpleHTTPRequestHandler):
         idx = ROOT / rel / "index.html"
         if idx.is_file():
             return idx
+
+        if rel.startswith("games/") and (ROOT / "games.html").is_file():
+            return ROOT / "games.html"
         return None
 
     # -- verbs -------------------------------------------------------------
@@ -225,6 +245,11 @@ class Handler(SimpleHTTPRequestHandler):
         hit = self._map_route(p)
         if hit is not None:
             self._serve_path(hit)
+            return
+
+        fallback = self._resolve_case_insensitive_file(p)
+        if fallback is not None:
+            self._serve_path(fallback)
             return
         super().do_GET()
 

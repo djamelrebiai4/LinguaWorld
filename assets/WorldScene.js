@@ -22,14 +22,18 @@ import {
   a as SSAO
 } from './CollisionConfig-_pz6FJXP.js';
 import { d as audio, I as ObjectInteraction } from './index-C2Y9NDyy.js';
+import { loadLivingTownSimulation } from '../scripts/living-town-engine.js';
+import { loadSmartPlaceSystem } from '../scripts/smart-place-system.js';
+import { CityNavigationGraph, ResidentNavigationManager } from '../scripts/living-town-navigation.js';
 
 const h = React.createElement;
+let sharedLivingTownSimulation = null;
 
 const CITY_PORTALS = [
   {
     id: 'house',
     targetLevel: 2,
-    title: { ar: 'المنزل', en: 'the house' },
+    title: { ar: 'المنزل', en: 'the house', de: 'das Haus' },
     position: { x: 140, z: -203 },
     radius: 24,
     spawn: { x: 0, y: 0, z: 0 },
@@ -38,7 +42,7 @@ const CITY_PORTALS = [
   {
     id: 'classroom',
     targetLevel: 3,
-    title: { ar: 'المدرسة', en: 'the school' },
+    title: { ar: 'المدرسة', en: 'the school', de: 'die Schule' },
     position: { x: -131, z: 281 },
     radius: 23,
     spawn: { x: 0, y: 0, z: 0 },
@@ -47,7 +51,7 @@ const CITY_PORTALS = [
   {
     id: 'restaurant',
     targetLevel: 4,
-    title: { ar: 'المطعم', en: 'the restaurant' },
+    title: { ar: 'المطعم', en: 'the restaurant', de: 'das Restaurant' },
     position: { x: 99, z: 170 },
     radius: 22,
     spawn: { x: 0, y: 0, z: 0 },
@@ -56,7 +60,7 @@ const CITY_PORTALS = [
   {
     id: 'supermarket',
     targetLevel: 5,
-    title: { ar: 'السوبرماركت', en: 'the supermarket' },
+    title: { ar: 'السوبرماركت', en: 'the supermarket', de: 'der Supermarkt' },
     position: { x: 83, z: 284 },
     radius: 24,
     spawn: { x: 0, y: 0, z: 0 },
@@ -99,6 +103,82 @@ const CITY_MAP = {
   maxZ: 335
 };
 
+const CITY_MAP_PLACES = [
+  {
+    id: 'town-center',
+    name: { ar: 'وسط المدينة', de: 'Stadtzentrum', en: 'Town center' },
+    aliases: ['crossing-main', 'crosswalk', 'تقاطع الشارع الرئيسي', 'Hauptkreuzung'],
+    category: { ar: 'شارع رئيسي', de: 'Hauptstraße', en: 'Main street' },
+    x: 30, z: 95, color: '#58b8a5'
+  },
+  {
+    id: 'town-park',
+    name: { ar: 'حديقة المدينة', de: 'Stadtpark', en: 'City park' },
+    aliases: ['park', 'الحديقة', 'grünanlage'],
+    category: { ar: 'حديقة', de: 'Park', en: 'Park' },
+    x: -170, z: 130, color: '#70b88c'
+  },
+  {
+    id: 'house',
+    name: { ar: 'المنزل', de: 'Haus', en: 'House' },
+    aliases: ['home', 'zu hause', 'البيت'],
+    category: { ar: 'منزل', de: 'Wohnhaus', en: 'Home' },
+    x: 140, z: -203, footprint: [28, 28], color: '#d9b18f'
+  },
+  {
+    id: 'classroom',
+    name: { ar: 'المدرسة', de: 'Schule', en: 'School' },
+    aliases: ['classroom', 'الصف', 'schule'],
+    category: { ar: 'تعليم', de: 'Bildung', en: 'Education' },
+    x: -131, z: 264, footprint: [42, 34], color: '#86b9df'
+  },
+  {
+    id: 'cafe',
+    name: { ar: 'المقهى', de: 'Café', en: 'Cafe' },
+    aliases: ['coffee shop', 'kaffee', 'كافيه'],
+    category: { ar: 'مقهى', de: 'Café', en: 'Cafe' },
+    x: 99, z: 160, footprint: [32, 30], color: '#e8a878'
+  },
+  {
+    id: 'restaurant',
+    name: { ar: 'المطعم', de: 'Restaurant', en: 'Restaurant' },
+    aliases: ['essen', 'food', 'الطعام'],
+    category: { ar: 'طعام', de: 'Essen', en: 'Dining' },
+    x: 99, z: 170, color: '#f2a876'
+  },
+  {
+    id: 'supermarket',
+    name: { ar: 'السوبرماركت', de: 'Supermarkt', en: 'Supermarket' },
+    aliases: ['market', 'einkaufen', 'متجر', 'سوق'],
+    category: { ar: 'تسوّق', de: 'Einkaufen', en: 'Shopping' },
+    x: 83, z: 268, footprint: [46, 48], color: '#ffd166'
+  },
+  ...[
+    { id: 'street-main', x: 30, z: 0, name: { ar: 'الشارع الرئيسي', de: 'Hauptstraße', en: 'Main Street' }, aliases: ['hauptstrasse', 'main street'] },
+    { id: 'street-park', x: -80, z: 170, name: { ar: 'شارع الحديقة', de: 'Parkstraße', en: 'Park Street' }, aliases: ['parkstrasse', 'park street'] },
+    { id: 'street-market', x: 120, z: 95, name: { ar: 'شارع السوق', de: 'Marktstraße', en: 'Market Street' }, aliases: ['marktstrasse', 'market street'] },
+    { id: 'street-school', x: -60, z: 284, name: { ar: 'شارع المدرسة', de: 'Schulstraße', en: 'School Street' }, aliases: ['schulstrasse', 'school street'] },
+    { id: 'street-south', x: -80, z: -130, name: { ar: 'الشارع الجنوبي', de: 'Südstraße', en: 'South Street' }, aliases: ['suedstrasse', 'sudstrasse', 'south street'] },
+    { id: 'street-residential', x: 100, z: -203, name: { ar: 'شارع المنازل', de: 'Wohnstraße', en: 'Residential Street' }, aliases: ['wohnstrasse', 'residential street'] }
+  ].map((street) => ({
+    ...street,
+    category: { ar: 'شارع', de: 'Straße', en: 'Street' },
+    color: '#526b65',
+    kind: 'street',
+    showLabel: true
+  })),
+  ...[
+    { id: 'crossing-cafe', x: 30, z: 170, name: { ar: 'معبر المقهى', de: 'Café-Übergang', en: 'Cafe crossing' } },
+    { id: 'crossing-school', x: 30, z: 284, name: { ar: 'معبر المدرسة', de: 'Schulübergang', en: 'School crossing' } },
+    { id: 'crossing-house', x: 30, z: -203, name: { ar: 'معبر المنزل', de: 'Haus-Übergang', en: 'House crossing' } }
+  ].map((crossing) => ({
+    ...crossing,
+    aliases: ['crossing', 'zebrastreifen', 'معبر مشاة'],
+    category: { ar: 'معبر مشاة', de: 'Fußgängerüberweg', en: 'Crosswalk' },
+    color: '#f4d774'
+  }))
+];
+
 function cityMapPoint(x, z) {
   return {
     x: CITY_MAP.left + (x - CITY_MAP.minX) *
@@ -117,14 +197,14 @@ function createCityMap(language) {
   };
   const panel = document.createElement('section');
   panel.className = 'lw-city-map';
-  panel.lang = language;
-  panel.dir = language === 'ar' ? 'rtl' : 'ltr';
-  panel.setAttribute('aria-label', language === 'ar' ? 'خريطة المدينة' : 'Town map');
+  panel.lang = 'de';
+  panel.dir = 'ltr';
+  panel.setAttribute('aria-label', 'Stadtplan');
 
   const header = document.createElement('div');
   header.className = 'lw-city-map-header';
   const heading = document.createElement('strong');
-  heading.textContent = language === 'ar' ? 'خريطة المدينة' : 'Town map';
+  heading.textContent = 'Stadtplan';
   const controls = document.createElement('div');
   controls.className = 'lw-city-map-controls';
   const makeMapButton = (className, label, iconMarkup) => {
@@ -138,13 +218,19 @@ function createCityMap(language) {
   };
   const legendToggle = makeMapButton(
     'lw-city-map-action lw-city-map-legend-toggle',
-    language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend',
+    'Legende anzeigen',
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>'
   );
   legendToggle.setAttribute('aria-expanded', 'false');
+  const searchToggle = makeMapButton(
+    'lw-city-map-action lw-city-map-search-toggle',
+    'Ort suchen',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>'
+  );
+  searchToggle.setAttribute('aria-pressed', 'false');
   const enlargeToggle = makeMapButton(
     'lw-city-map-action lw-city-map-enlarge-toggle',
-    language === 'ar' ? 'تكبير الخريطة' : 'Enlarge map',
+    'Karte vergrößern',
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><path d="M8 8 3 3m13 5 5-5M8 16l-5 5m13-5 5 5"/></svg>'
   );
   enlargeToggle.setAttribute('aria-pressed', 'false');
@@ -152,19 +238,29 @@ function createCityMap(language) {
   toggle.type = 'button';
   toggle.className = 'lw-city-map-toggle';
   toggle.textContent = '−';
-  toggle.setAttribute('aria-label', language === 'ar' ? 'طي الخريطة' : 'Collapse map');
+  toggle.setAttribute('aria-label', 'Karte einklappen');
   toggle.setAttribute('aria-expanded', 'true');
-  controls.append(legendToggle, enlargeToggle, toggle);
+  controls.append(searchToggle, legendToggle, enlargeToggle, toggle);
   header.append(heading, controls);
+
+  const searchPanel = document.createElement('div');
+  searchPanel.className = 'lw-city-map-search';
+  const searchInput = document.createElement('input');
+  searchInput.type = 'search';
+  searchInput.className = 'lw-city-map-search-input';
+  searchInput.placeholder = 'Ort suchen: Park, Schule, Haus …';
+  searchInput.setAttribute('aria-label', 'Ort suchen');
+  const searchResults = document.createElement('div');
+  searchResults.className = 'lw-city-map-results';
+  searchResults.setAttribute('role', 'listbox');
+  searchPanel.append(searchInput, searchResults);
 
   const body = document.createElement('div');
   body.className = 'lw-city-map-body';
   const map = svgElement('svg', {
     viewBox: `0 0 ${CITY_MAP.width} ${CITY_MAP.height}`,
-    role: 'img',
-    'aria-label': language === 'ar'
-      ? 'خريطة طرق المدينة ومواقع المنزل والمدرسة والمطعم والسوبرماركت'
-      : 'City map showing the house, school, restaurant, and supermarket'
+    role: 'group',
+    'aria-label': 'Stadtplan mit Orten, Übergängen und deinem aktuellen Standort'
   });
   map.appendChild(svgElement('rect', {
     x: 3, y: 3, width: CITY_MAP.width - 6, height: CITY_MAP.height - 6, rx: 12,
@@ -216,24 +312,52 @@ function createCityMap(language) {
     }));
   });
 
-  const markerColors = {
-    house: '#d9b18f',
-    classroom: '#86b9df',
-    restaurant: '#f2a876',
-    supermarket: '#ffd166'
-  };
-  CITY_PORTALS.forEach((portal) => {
-    const position = cityMapPoint(portal.position.x, portal.position.z);
+  CITY_MAP_PLACES.filter((place) => place.footprint).forEach((place) => {
+    const first = cityMapPoint(place.x - place.footprint[0] / 2, place.z + place.footprint[1] / 2);
+    const last = cityMapPoint(place.x + place.footprint[0] / 2, place.z - place.footprint[1] / 2);
+    map.appendChild(svgElement('rect', {
+      x: first.x,
+      y: first.y,
+      width: last.x - first.x,
+      height: last.y - first.y,
+      rx: 1.5,
+      class: `lw-city-map-building is-${place.id}`
+    }));
+  });
+
+  const routeLine = svgElement('line', { class: 'lw-city-map-route', visibility: 'hidden' });
+  map.appendChild(routeLine);
+  const placeMarkers = new Map();
+  CITY_MAP_PLACES.forEach((place) => {
+    const position = cityMapPoint(place.x, place.z);
     const marker = svgElement('g', {
-      class: `lw-city-map-marker${portal.id === 'supermarket' ? ' is-supermarket' : ''}`,
+      class: `lw-city-map-marker is-poi is-${place.kind || place.id}`,
       transform: `translate(${position.x} ${position.y})`
     });
     const title = svgElement('title');
-    title.textContent = portal.title[language];
-    marker.append(title, svgElement('circle', {
-      r: portal.id === 'supermarket' ? 5.3 : 4.2,
-      fill: markerColors[portal.id]
-    }));
+    title.textContent = `${place.name[language]} / ${place.name.de}`;
+    marker.append(title, place.kind === 'street'
+      ? svgElement('rect', { x: -1.7, y: -1.7, width: 3.4, height: 3.4, transform: 'rotate(45)', fill: place.color })
+      : svgElement('circle', { r: place.footprint ? 4.4 : 3.2, fill: place.color }));
+    if (place.footprint || place.id === 'town-park' || place.showLabel) {
+      const label = svgElement('text', { x: 0, y: -6, class: 'lw-city-map-label' });
+      label.textContent = place.name[language];
+      marker.appendChild(label);
+    }
+    marker.setAttribute('tabindex', '0');
+    marker.setAttribute('role', 'button');
+    marker.setAttribute('aria-label', title.textContent);
+    marker.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectPlace(place);
+    });
+    marker.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectPlace(place);
+      }
+    });
+    placeMarkers.set(place.id, marker);
     map.appendChild(marker);
   });
 
@@ -250,7 +374,7 @@ function createCityMap(language) {
 
   const compass = document.createElement('span');
   compass.className = 'lw-city-map-compass';
-  compass.textContent = language === 'ar' ? 'شمال' : 'North';
+  compass.textContent = 'Norden';
   const compassIcon = svgElement('svg', {
     viewBox: '0 0 24 24',
     'aria-hidden': 'true'
@@ -261,11 +385,11 @@ function createCityMap(language) {
   const legend = document.createElement('div');
   legend.className = 'lw-city-map-legend';
   const legendItems = [
-    { label: language === 'ar' ? 'أنت' : 'You', color: '#ffb36b', player: true },
-    ...CITY_PORTALS.map((portal) => ({
-      label: portal.title[language],
-      color: markerColors[portal.id],
-      id: portal.id
+    { label: 'Du', color: '#ffb36b', player: true },
+    ...CITY_MAP_PLACES.map((place) => ({
+      label: place.name[language],
+      color: place.color,
+      id: place.id
     }))
   ];
   legendItems.forEach(({ label, color, player, id }) => {
@@ -280,24 +404,138 @@ function createCityMap(language) {
     legend.appendChild(item);
   });
 
-  body.append(map, compass, legend);
-  panel.append(header, body);
+  const liveInfo = document.createElement('div');
+  liveInfo.className = 'lw-city-map-info';
+  const currentLocation = document.createElement('div');
+  currentLocation.className = 'lw-city-map-current';
+  currentLocation.setAttribute('aria-live', 'polite');
+  const selectedLocation = document.createElement('div');
+  selectedLocation.className = 'lw-city-map-selected';
+  selectedLocation.setAttribute('aria-live', 'polite');
+  selectedLocation.textContent = 'Wähle einen Ort für Entfernung und Richtung.';
+  liveInfo.append(currentLocation, selectedLocation);
+  body.append(map, compass, legend, liveInfo);
+  panel.append(header, searchPanel, body);
+
+  const normalizeSearch = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .trim();
+  let selectedPlace = null;
+  let lastPlayerPosition = null;
+  const directionFor = (dx, dz) => {
+    const angle = (Math.atan2(dx, dz) * 180 / Math.PI + 360) % 360;
+    const directions = ['Norden', 'Nordosten', 'Osten', 'Südosten', 'Süden', 'Südwesten', 'Westen', 'Nordwesten'];
+    return directions[Math.round(angle / 45) % 8];
+  };
+  const updateInfo = () => {
+    if (!lastPlayerPosition) return;
+    const { x, z } = lastPlayerPosition;
+    const nearest = CITY_MAP_PLACES.reduce((best, place) => {
+      const distance = Math.hypot(place.x - x, place.z - z);
+      return !best || distance < best.distance ? { place, distance } : best;
+    }, null);
+    currentLocation.textContent = `Du bist in der Nähe von ${nearest.place.name.de} · ${Math.round(nearest.distance)} m entfernt · X ${Math.round(x)}, Z ${Math.round(z)}`;
+    if (!selectedPlace) return;
+    const dx = selectedPlace.x - x;
+    const dz = selectedPlace.z - z;
+    const distance = Math.hypot(dx, dz);
+    selectedLocation.textContent = `${selectedPlace.name.de} · ${Math.round(distance)} m ${directionFor(dx, dz)}`;
+  };
+  const selectPlace = (place) => {
+    selectedPlace = place;
+    placeMarkers.forEach((marker, id) => marker.classList.toggle('is-selected', id === place.id));
+    routeLine.setAttribute('visibility', 'visible');
+    if (lastPlayerPosition) {
+      const player = cityMapPoint(lastPlayerPosition.x, lastPlayerPosition.z);
+      const target = cityMapPoint(place.x, place.z);
+      routeLine.setAttribute('x1', player.x);
+      routeLine.setAttribute('y1', player.y);
+      routeLine.setAttribute('x2', target.x);
+      routeLine.setAttribute('y2', target.y);
+    }
+    updateInfo();
+    searchResults.querySelectorAll('.lw-city-map-result').forEach((result) => {
+      result.setAttribute('aria-selected', String(result.dataset.placeId === place.id));
+    });
+  };
+  const renderResults = () => {
+    const query = normalizeSearch(searchInput.value);
+    const matches = CITY_MAP_PLACES.filter((place) => [
+      place.name.ar, place.name.de, place.name.en, place.category.ar,
+      place.category.de, place.category.en, ...place.aliases
+    ].some((term) => normalizeSearch(term).includes(query)));
+    searchResults.replaceChildren();
+    matches.forEach((place) => {
+      const result = document.createElement('button');
+      result.type = 'button';
+      result.className = 'lw-city-map-result';
+      result.dataset.placeId = place.id;
+      result.setAttribute('role', 'option');
+      result.setAttribute('aria-selected', String(selectedPlace?.id === place.id));
+      const name = document.createElement('bdi');
+      name.textContent = place.name[language];
+      const detail = document.createElement('small');
+      detail.textContent = `${place.name.de} · ${place.category[language]}`;
+      result.append(name, detail);
+      result.addEventListener('click', () => selectPlace(place));
+      searchResults.appendChild(result);
+    });
+    if (!matches.length) {
+      const empty = document.createElement('p');
+      empty.className = 'lw-city-map-empty';
+      empty.textContent = 'Keine Orte gefunden.';
+      searchResults.appendChild(empty);
+    }
+  };
+  searchInput.addEventListener('input', renderResults);
+  renderResults();
+
+  const updatePosition = (x, z, heading) => {
+    const position = cityMapPoint(x, z);
+    lastPlayerPosition = { x, z };
+    playerMarker.setAttribute('transform', `translate(${position.x} ${position.y}) rotate(${heading})`);
+    if (selectedPlace) {
+      const target = cityMapPoint(selectedPlace.x, selectedPlace.z);
+      routeLine.setAttribute('x1', position.x);
+      routeLine.setAttribute('y1', position.y);
+      routeLine.setAttribute('x2', target.x);
+      routeLine.setAttribute('y2', target.y);
+      updateInfo();
+    } else {
+      updateInfo();
+    }
+  };
   legendToggle.addEventListener('click', (event) => {
     event.stopPropagation();
     const expanded = panel.classList.toggle('is-legend-open');
     legendToggle.setAttribute('aria-expanded', String(expanded));
     legendToggle.setAttribute(
       'aria-label',
-      expanded
-        ? language === 'ar' ? 'إخفاء مفتاح الخريطة' : 'Hide map legend'
-        : language === 'ar' ? 'إظهار مفتاح الخريطة' : 'Show map legend'
+      expanded ? 'Legende ausblenden' : 'Legende anzeigen'
     );
   });
   const closeEnlargedMap = () => {
     panel.classList.remove('is-enlarged');
+    panel.classList.remove('is-search-open');
     document.body.classList.remove('map-overlay-open');
     enlargeToggle.setAttribute('aria-pressed', 'false');
+    searchToggle.setAttribute('aria-pressed', 'false');
   };
+  searchToggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const open = !panel.classList.contains('is-search-open');
+    panel.classList.toggle('is-search-open', open);
+    panel.classList.toggle('is-enlarged', open);
+    document.body.classList.toggle('map-overlay-open', open);
+    searchToggle.setAttribute('aria-pressed', String(open));
+    enlargeToggle.setAttribute('aria-pressed', String(open));
+    if (open) {
+      renderResults();
+      searchInput.focus();
+    }
+  });
   enlargeToggle.addEventListener('click', (event) => {
     event.stopPropagation();
     const enlarged = panel.classList.toggle('is-enlarged');
@@ -315,16 +553,14 @@ function createCityMap(language) {
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute(
       'aria-label',
-      collapsed
-        ? language === 'ar' ? 'توسيع الخريطة' : 'Expand map'
-        : language === 'ar' ? 'طي الخريطة' : 'Collapse map'
+      collapsed ? 'Karte ausklappen' : 'Karte einklappen'
     );
   });
   ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach((eventName) => {
     panel.addEventListener(eventName, (event) => event.stopPropagation());
   });
 
-  return { panel, playerMarker };
+  return { panel, playerMarker, updatePosition };
 }
 
 const FirstPersonPlayer = React.forwardRef(function FirstPersonPlayer({
@@ -574,8 +810,8 @@ function CityWorld({ onPositionsReady, isPaused }) {
       intensity: 1.7,
       color: 0xffedcf,
       castShadow: true,
-      'shadow-mapSize-width': 2048,
-      'shadow-mapSize-height': 2048,
+      'shadow-mapSize-width': 1024,
+      'shadow-mapSize-height': 1024,
       'shadow-camera-near': 1,
       'shadow-camera-far': 760,
       'shadow-camera-left': -320,
@@ -1112,15 +1348,18 @@ function NPCCharacter({
   onPosition,
   playerBody,
   isPaused,
-  isEngaged
+  isEngaged,
+  navigationManager
 }) {
   const { scene } = useGLTF(`/Grounds/NPC/${npc.model}.glb`, true);
   const groupRef = React.useRef(null);
   const routeIndex = React.useRef(1);
   const waitTime = React.useRef(npc.initialWait ?? 0.5);
   const animationTime = React.useRef(0);
+  const animationAccumulator = React.useRef(0);
   const animationMode = React.useRef(null);
   const hasLeft = React.useRef(false);
+  const steering = React.useMemo(() => ({ x: 0, z: 0 }), []);
   const model = React.useMemo(() => scene.clone(true), [scene]);
   const nodes = React.useMemo(() => {
     const lookup = new Map();
@@ -1188,10 +1427,17 @@ function NPCCharacter({
           routeIndex.current = (routeIndex.current + 1) % npc.path.length;
           waitTime.current = npc.stopDuration ?? 1.1;
         } else {
-          const step = Math.min(distance, npc.speed * delta);
-          group.position.x += (dx / distance) * step;
-          group.position.z += (dz / distance) * step;
-          group.rotation.y = Math.atan2(dx, dz);
+          steering.x = (dx / distance) * npc.speed;
+          steering.z = (dz / distance) * npc.speed;
+          if (npc.livingResident && navigationManager) {
+            const player = playerBody.current && playerBody.current.translation();
+            navigationManager.avoid(npc.id, group.position, steering, player);
+          }
+          const velocityLength = Math.hypot(steering.x, steering.z) || 1;
+          const step = Math.min(distance, velocityLength * delta);
+          group.position.x += (steering.x / velocityLength) * step;
+          group.position.z += (steering.z / velocityLength) * step;
+          group.rotation.y = Math.atan2(steering.x, steering.z);
           walking = true;
         }
       }
@@ -1218,8 +1464,16 @@ function NPCCharacter({
     if (animationMode.current !== mode) {
       animationMode.current = mode;
       animationTime.current = 0;
+      animationAccumulator.current = 0;
     }
-    animationTime.current += delta;
+    if (npc.livingResident) {
+      animationAccumulator.current += delta;
+      if (animationAccumulator.current < 1 / 15) return;
+      animationTime.current += animationAccumulator.current;
+      animationAccumulator.current = 0;
+    } else {
+      animationTime.current += delta;
+    }
     const clip = mode === 'walk'
       ? walkClip
       : mode === 'interact'
@@ -1260,6 +1514,7 @@ function WorldExplorer({
   const [nearbyNpc, setNearbyNpc] = React.useState(null);
   const [engagedNpcKey, setEngagedNpcKey] = React.useState(null);
   const [npcSpeech, setNpcSpeech] = React.useState(null);
+  const [residentNpcs, setResidentNpcs] = React.useState([]);
   const firstScene = React.useRef(true);
   const pendingSpawn = React.useRef(null);
   const currentPortal = React.useRef(null);
@@ -1270,8 +1525,13 @@ function WorldExplorer({
   const interactionPromptNpcId = React.useRef(null);
   const cityMapElement = React.useRef(null);
   const cityMapPlayerMarker = React.useRef(null);
+  const cityMapUpdate = React.useRef(null);
   const speechSequence = React.useRef(0);
   const chatOpen = React.useRef(false);
+  const townSimulation = React.useRef(null);
+  const townNavigation = React.useRef(null);
+  const residentSelectionTimer = React.useRef(0);
+  const residentSelectionSignature = React.useRef('');
   const screenPosition = React.useMemo(() => new Vector3(), []);
   const mapDirection = React.useMemo(() => new Vector3(), []);
   const loadingRef = React.useRef(false);
@@ -1280,7 +1540,7 @@ function WorldExplorer({
   const { animations: movementAnimations } = useGLTF('/Grounds/NPC/Movement.glb', true);
   const { animations: idleAnimations } = useGLTF('/Grounds/NPC/General.glb', true);
   const activeNpcs = WORLD_NPCS[level] || [];
-  const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+  const language = 'de';
 
   const updateNpcPosition = React.useCallback((id, x, z) => {
     if (typeof x !== 'number' || typeof z !== 'number') {
@@ -1295,6 +1555,7 @@ function WorldExplorer({
       position.x = x;
       position.z = z;
     }
+    townNavigation.current?.updatePosition(id, x, z);
   }, []);
 
   React.useEffect(() => {
@@ -1302,13 +1563,88 @@ function WorldExplorer({
   }, [currentLevel]);
 
   React.useEffect(() => {
+    let cancelled = false;
+    let simulation = null;
+    let smartPlaces = null;
+    let navigation = null;
+    let unsubscribe = null;
+
+    loadLivingTownSimulation({
+      population: Number(localStorage.getItem('lw_town_population')) || undefined,
+      seed: localStorage.getItem('lw_town_seed') || undefined
+    }).then((loadedSimulation) => {
+      simulation = loadedSimulation;
+      return loadSmartPlaceSystem().then((loadedPlaces) => {
+        if (cancelled) {
+          loadedPlaces.destroy();
+          simulation.destroy();
+          return;
+        }
+        smartPlaces = loadedPlaces;
+        navigation = new ResidentNavigationManager(
+          new CityNavigationGraph(),
+          simulation,
+          { fixedActors: (WORLD_NPCS[1] || []).length }
+        );
+        townNavigation.current = navigation;
+        sharedLivingTownSimulation = simulation;
+        townSimulation.current = simulation;
+        window.LivingTownSimulation = simulation;
+        window.SmartPlaces = smartPlaces;
+        window.LivingTownNavigation = navigation;
+        unsubscribe = simulation.subscribe((event) => {
+          if (event.type === 'clock') smartPlaces.advance(1, event);
+          window.dispatchEvent(new CustomEvent(`living-town-${event.type}`, { detail: event }));
+        });
+        window.dispatchEvent(new CustomEvent('living-town-ready', {
+          detail: {
+            population: simulation.population,
+            place_count: smartPlaces.places.size,
+            waypoint_count: navigation.graph.nodes.size,
+            full_simulation_cap: navigation.fullCap,
+            day_index: simulation.dayIndex,
+            weekday: ((simulation.dayIndex % 7) + 7) % 7,
+            minute_of_day: Math.floor(simulation.minuteOfDay),
+            time: `${String(Math.floor(simulation.minuteOfDay / 60)).padStart(2, '0')}:${String(Math.floor(simulation.minuteOfDay % 60)).padStart(2, '0')}`,
+            weather: simulation.weather
+          }
+        }));
+      });
+    }).catch((error) => {
+      if (!cancelled) console.warn('Local town simulation could not load its JSON data.', error);
+    });
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+      if (smartPlaces) {
+        smartPlaces.destroy();
+        if (window.SmartPlaces === smartPlaces) delete window.SmartPlaces;
+      }
+      if (navigation) {
+        navigation.destroy();
+        if (townNavigation.current === navigation) townNavigation.current = null;
+        if (window.LivingTownNavigation === navigation) delete window.LivingTownNavigation;
+      }
+      if (simulation) {
+        simulation.destroy();
+        if (townSimulation.current === simulation) townSimulation.current = null;
+        if (sharedLivingTownSimulation === simulation) sharedLivingTownSimulation = null;
+        if (window.LivingTownSimulation === simulation) delete window.LivingTownSimulation;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
     if (level !== 1) return undefined;
     const cityMap = createCityMap(language);
     document.body.appendChild(cityMap.panel);
     cityMapElement.current = cityMap.panel;
     cityMapPlayerMarker.current = cityMap.playerMarker;
+    cityMapUpdate.current = cityMap.updatePosition;
     return () => {
       cityMap.panel.remove();
+      if (cityMapUpdate.current === cityMap.updatePosition) cityMapUpdate.current = null;
       if (cityMapElement.current === cityMap.panel) cityMapElement.current = null;
       if (cityMapPlayerMarker.current === cityMap.playerMarker) {
         cityMapPlayerMarker.current = null;
@@ -1384,15 +1720,51 @@ function WorldExplorer({
     setNpcSpeech(null);
   }, [level]);
 
+  useFrame((_, delta) => {
+    const simulation = townSimulation.current;
+    if (!simulation) return;
+    simulation.advance(delta, isPaused || isLoading, window.LivingTownWeather || 'clear');
+  });
+
+  useFrame((_, delta) => {
+    const navigation = townNavigation.current;
+    if (!navigation) return;
+    const player = playerBody.current && playerBody.current.translation();
+    navigation.advance(delta, player, { paused: isPaused || isLoading });
+    if (level !== 1) {
+      if (residentSelectionSignature.current) {
+        residentSelectionSignature.current = '';
+        setResidentNpcs([]);
+      }
+      return;
+    }
+    if (!player) return;
+
+    residentSelectionTimer.current += delta;
+    if (residentSelectionTimer.current < 0.3) return;
+    residentSelectionTimer.current = 0;
+    const selected = navigation.selectFullSimulation(player, (agent) => {
+      screenPosition.set(agent.x, 1, agent.z).project(camera);
+      return screenPosition.z >= -1 && screenPosition.z <= 1
+        && screenPosition.x >= -1.05 && screenPosition.x <= 1.05
+        && screenPosition.y >= -1.05 && screenPosition.y <= 1.05;
+    });
+    const signature = selected.map((npc) => `${npc.id}:${npc.routeVersion}`).join('|');
+    if (signature !== residentSelectionSignature.current) {
+      residentSelectionSignature.current = signature;
+      setResidentNpcs(selected);
+    }
+  });
+
   useFrame(() => {
     const player = playerBody.current && playerBody.current.translation();
     if (level === 1 && player && cityMapPlayerMarker.current) {
       const position = cityMapPoint(player.x, player.z);
       camera.getWorldDirection(mapDirection);
       const heading = Math.atan2(mapDirection.x, -mapDirection.z) * 180 / Math.PI;
-      cityMapPlayerMarker.current.setAttribute(
-        'transform',
-        `translate(${position.x} ${position.y}) rotate(${heading})`
+      if (cityMapUpdate.current) cityMapUpdate.current(player.x, player.z, heading);
+      else cityMapPlayerMarker.current.setAttribute(
+        'transform', `translate(${position.x} ${position.y}) rotate(${heading})`
       );
     }
 
@@ -1467,13 +1839,6 @@ function WorldExplorer({
       gameLocation.level = level;
       gameLocation.x = player.x;
       gameLocation.z = player.z;
-    }
-    if (level === 1 && cityMapPlayerMarker.current) {
-      const mapPosition = cityMapPoint(player.x, player.z);
-      cityMapPlayerMarker.current.setAttribute(
-        'transform',
-        `translate(${mapPosition.x} ${mapPosition.y})`
-      );
     }
     let match = null;
     let closestNpc = null;
@@ -1563,20 +1928,12 @@ function WorldExplorer({
 
   const portalText = nearbyPortal
     ? nearbyPortal.isExit
-      ? language === 'en'
-        ? `Return to the city from ${nearbyPortal.title.en}`
-        : `العودة إلى المدينة من ${nearbyPortal.title.ar}`
-      : language === 'en'
-        ? `Enter ${nearbyPortal.title[language]}`
-        : `ادخل إلى ${nearbyPortal.title[language]}`
+      ? 'Zurück in die Stadt'
+      : `Betrete ${nearbyPortal.title.de}`
     : '';
-  const buttonText = language === 'en' ? 'Enter' : 'دخول';
-  const npcText = nearbyNpc
-    ? language === 'en'
-      ? `Talk with ${nearbyNpc.name.en}`
-      : `تحدث مع ${nearbyNpc.name.ar}`
-    : '';
-  const npcButtonText = language === 'en' ? 'Talk' : 'تحدث';
+  const buttonText = nearbyPortal?.isExit ? 'Zurückkehren' : 'Betreten';
+  const npcText = nearbyNpc ? `Sprich mit ${nearbyNpc.name.en}` : '';
+  const npcButtonText = 'Sprechen';
 
   React.useEffect(() => {
     if (!nearbyNpc && !nearbyPortal) return undefined;
@@ -1599,7 +1956,7 @@ function WorldExplorer({
     const key = document.createElement('kbd');
     key.textContent = 'F';
     button.append(buttonLabel, key);
-    text.dir = language === 'ar' ? 'rtl' : 'ltr';
+    text.dir = 'ltr';
     buttonLabel.dir = 'auto';
 
     const stopPropagation = (event) => event.stopPropagation();
@@ -1650,7 +2007,7 @@ function WorldExplorer({
       })
       : null,
     h(LevelWorld, { level, onPositionsReady, isPaused: isPaused || isLoading }),
-    activeNpcs.map((npc) => h(NPCCharacter, {
+    [...activeNpcs, ...residentNpcs].map((npc) => h(NPCCharacter, {
       key: npc.id,
       npc,
       movementAnimations,
@@ -1658,7 +2015,8 @@ function WorldExplorer({
       onPosition: updateNpcPosition,
       playerBody,
       isPaused: isPaused || isLoading,
-      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey
+      isEngaged: npc.id === (nearbyNpc && nearbyNpc.id) || npc.npcKey === engagedNpcKey,
+      navigationManager: npc.livingResident ? townNavigation.current : null
     })),
   );
 }
@@ -1673,6 +2031,60 @@ export default function WorldScene({
   isPaused,
   isMobile
 }) {
+  const [reducePostProcessing, setReducePostProcessing] = React.useState(false);
+  const qualityWindow = React.useRef({
+    elapsed: 0,
+    frames: 0,
+    slowSeconds: 0,
+    fastSeconds: 0,
+    crowdReduced: false,
+    crowdRestoreSeconds: 0
+  });
+
+  useFrame((_, delta) => {
+    const worldLocation = window.GermanWorldLocation;
+    if (!worldLocation || !Number.isFinite(worldLocation.x) || !Number.isFinite(worldLocation.z)) return;
+    const quality = qualityWindow.current;
+    quality.elapsed += delta;
+    quality.frames += 1;
+    if (quality.elapsed < 1) return;
+    const averageDelta = quality.elapsed / quality.frames;
+    if (averageDelta > 1 / 48) {
+      quality.slowSeconds += quality.elapsed;
+      quality.fastSeconds = 0;
+      quality.crowdRestoreSeconds = 0;
+    } else if (averageDelta < 1 / 55) {
+      quality.fastSeconds += quality.elapsed;
+      quality.slowSeconds = 0;
+      if (averageDelta < 1 / 58) quality.crowdRestoreSeconds += quality.elapsed;
+      else quality.crowdRestoreSeconds = 0;
+    } else {
+      quality.slowSeconds = 0;
+      quality.fastSeconds = 0;
+      quality.crowdRestoreSeconds = 0;
+    }
+    quality.elapsed = 0;
+    quality.frames = 0;
+    if (!reducePostProcessing && quality.slowSeconds >= 2) setReducePostProcessing(true);
+    else if (reducePostProcessing && quality.fastSeconds >= 8) setReducePostProcessing(false);
+
+    const navigation = sharedLivingTownSimulation && window.LivingTownNavigation;
+    if (navigation && quality.slowSeconds >= 2 && !quality.crowdReduced) {
+      navigation.visibleCap = 4;
+      quality.crowdReduced = true;
+      window.dispatchEvent(new CustomEvent('living-town-quality-change', {
+        detail: { visible_npc_cap: navigation.visibleCap, post_processing_reduced: true }
+      }));
+    } else if (navigation && quality.crowdReduced && quality.crowdRestoreSeconds >= 8) {
+      navigation.visibleCap = Math.min(navigation.fullCap - navigation.fixedActors, navigation.visibleCap + 4);
+      quality.crowdRestoreSeconds = 0;
+      if (navigation.visibleCap >= navigation.fullCap - navigation.fixedActors) quality.crowdReduced = false;
+      window.dispatchEvent(new CustomEvent('living-town-quality-change', {
+        detail: { visible_npc_cap: navigation.visibleCap, post_processing_reduced: reducePostProcessing }
+      }));
+    }
+  });
+
   const handleObjectClick = React.useCallback((objectName) => {
     if (typeof objectName === 'string' && objectName.startsWith('I_')) {
       const vocabularyKey = objectName.slice(2).split('|')[0]
@@ -1692,7 +2104,6 @@ export default function WorldScene({
     h('ambientLight', { intensity: 0.1, color: 0xffffff }),
     h('hemisphereLight', { skyColor: 0x87ceeb, groundColor: 0x8b8b8b, intensity: 0.2 }),
     h('directionalLight', { position: [10, 20, 10], intensity: 0.1, color: 0xfff0a0 }),
-    h(Environment, { preset: 'city' }),
     h(React.Suspense, { fallback: null },
       h(Physics, { gravity: [0, -9.81, 0], debug: false },
         h(WorldExplorer, {
@@ -1703,7 +2114,7 @@ export default function WorldScene({
           isPaused,
           isMobile
         }))),
-    !isMobile
+    !isMobile && !reducePostProcessing
       ? h(EffectComposer, { disableNormalPass: true },
         h(SSAO, { aoRadius: 2, intensity: 2, color: 'black' }))
       : null

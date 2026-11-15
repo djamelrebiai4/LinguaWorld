@@ -5,14 +5,21 @@
   const logoPath = '/Images/LinguaWorld.svg';
 
   function applyBrand() {
-    const language = localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
-    const pageTitle = `${brandName} | Learn German`;
-    const description = language === 'en'
-      ? 'Learn German through interactive worlds, vocabulary, pronunciation, and games. Choose Arabic or English explanations.'
-      : 'تعلّم الألمانية عبر عوالم تفاعلية ومفردات ونطق وألعاب. اختر الشرح بالعربية أو الإنجليزية.';
-    const homeHeadline = language === 'en'
-      ? 'Learn German, one word at a time.'
-      : 'تعلّم الألمانية، كلمةً بعد كلمة.';
+    const storedLanguage = localStorage.getItem('lw_support_language');
+    const language = storedLanguage === 'ar' || storedLanguage === 'en' ? storedLanguage : 'de';
+    const pageTitle = `${brandName} | Deutsch lernen`;
+    const descriptions = {
+      de: 'Lerne Deutsch in interaktiven Welten mit Wortschatz, Aussprache und Spielen. Übersetze nur bei Bedarf.',
+      en: 'Learn German through interactive worlds, vocabulary, pronunciation, and games. Use German first and translate only when needed.',
+      ar: 'تعلّم الألمانية عبر عوالم تفاعلية ومفردات ونطق وألعاب. استخدم الألمانية أولاً ثم اختر الترجمة عند الحاجة.'
+    };
+    const headlines = {
+      de: 'Lerne Deutsch spielerisch.',
+      en: 'Learn German through play.',
+      ar: 'تعلّم الألمانية من خلال اللعب.'
+    };
+    const description = descriptions[language];
+    const homeHeadline = headlines[language];
 
     if (document.title !== pageTitle) document.title = pageTitle;
 
@@ -73,9 +80,11 @@
 
     const root = document.getElementById('root');
     if (root && root.childElementCount === 0 && root.textContent.includes('Lexi Explorer')) {
-      root.textContent = language === 'en'
-        ? 'Learn German through interactive worlds and playful practice with LinguaWorld.'
-        : 'تعلّم الألمانية عبر عوالم تفاعلية وتدريبات ممتعة مع LinguaWorld.';
+      root.textContent = language === 'de'
+        ? 'Lerne Deutsch in interaktiven Welten und mit spielerischen Übungen von LinguaWorld.'
+        : language === 'en'
+          ? 'Learn German through interactive worlds and playful practice with LinguaWorld.'
+          : 'تعلّم الألمانية عبر عوالم تفاعلية وتدريبات ممتعة مع LinguaWorld.';
     }
   }
 

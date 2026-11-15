@@ -449,19 +449,40 @@
 
 .de-game-score-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 8px;
   font-size: 15px;
   font-weight: 800;
   color: #64748b;
   margin-bottom: 24px;
 }
 
+.de-game-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fef3c7, #fef9c3);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.18);
+}
+
 .de-game-word-card {
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+  border: 2px dashed rgba(96, 165, 250, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
   border-radius: 24px;
   padding: 28px 20px;
   margin-bottom: 24px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.de-game-word-card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 14px 22px rgba(59, 130, 246, 0.08);
 }
 
 .de-game-noun {
@@ -493,10 +514,16 @@
   border: none;
   color: white;
   transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
 }
 
 .de-choice-btn:hover {
   transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.18);
+}
+
+.de-choice-btn:active {
+  transform: translateY(-1px) scale(0.99);
 }
 
 .de-choice-der {
@@ -519,18 +546,26 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: #0f172a;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
   color: white;
   padding: 12px 20px;
   border-radius: 14px;
   font-weight: 800;
   font-size: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
   z-index: 10000001;
   display: flex;
   align-items: center;
   gap: 10px;
   animation: deToastSlide 0.3s ease;
+}
+
+.de-toast-success {
+  background: linear-gradient(135deg, #047857, #10b981);
+}
+
+.de-toast-error {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
 }
 
 @keyframes deToastSlide {

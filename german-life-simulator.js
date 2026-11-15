@@ -12,7 +12,7 @@
   const LifeState = {
     money: parseInt(localStorage.getItem('de_life_money') || '350', 10),
     energy: parseInt(localStorage.getItem('de_life_energy') || '100', 10),
-    timeOfDay: localStorage.getItem('de_life_time') || 'Nachmittag ☀️',
+    timeOfDay: 'Nachmittag',
     properties: JSON.parse(localStorage.getItem('de_life_properties') || '[]'),
     inventory: JSON.parse(localStorage.getItem('de_life_inventory') || '["Kaffee ☕", "Buch 📖"]'),
     activeNpcKey: null,
@@ -38,13 +38,13 @@
 
     spendMoney(amount, reason) {
       if (this.money < amount) {
-        showToast(`⚠️ ليس لديك رصيد كافٍ! تحتاج إلى ${amount} €`);
+        showToast(`⚠️ Dein Guthaben reicht nicht. Du brauchst ${amount} €.`);
         playSFX('Wrong');
         return false;
       }
       this.money -= amount;
       this.save();
-      showToast(`💸 تم دفع ${amount} €: ${reason}`);
+      showToast(`💸 ${amount} € bezahlt: ${reason}`);
       playSFX('DoorOpen');
       return true;
     },
@@ -58,7 +58,7 @@
       this.energy = 100;
       this.save();
       playSFX('LessonComplete');
-      showToast('⚡ استعدت طاقتك بالكامل بعد الراحة والنوم!');
+      showToast('⚡ Deine Energie ist nach der Ruhepause wieder vollständig hergestellt!');
     },
 
     updateHUD() {
@@ -70,6 +70,18 @@
       if (timeEl) timeEl.textContent = this.timeOfDay;
     }
   };
+
+  function syncTownClock(event) {
+    const clock = event.detail || {};
+    if (!Number.isFinite(clock.minute_of_day)) return;
+    const hour = Math.floor(clock.minute_of_day / 60) % 24;
+    const period = hour < 5 ? 'Nacht' : hour < 11 ? 'Morgen' : hour < 14 ? 'Mittag' : hour < 18 ? 'Nachmittag' : hour < 22 ? 'Abend' : 'Nacht';
+    LifeState.timeOfDay = `${period} · ${clock.time || `${String(hour).padStart(2, '0')}:${String(clock.minute_of_day % 60).padStart(2, '0')}`}`;
+    LifeState.updateHUD();
+  }
+
+  window.addEventListener('living-town-ready', syncTownClock);
+  window.addEventListener('living-town-clock', syncTownClock);
 
   // 2. Sound Effects
   function playSFX(name) {
@@ -131,10 +143,10 @@
     sophie: {
       id: 'sophie',
       name: 'Sophie Müller',
-      role: 'Die Barista & Studentin (المقهى والمطعم)',
+      role: 'Barista und Studentin',
       world: 'Restaurant',
       avatar: '☕',
-      personality: 'Lebensfroh, herzlich & kunstbegeistert (مبتهجة ومحبة للفن واللغات)',
+      personality: 'Lebensfroh, herzlich und kunstbegeistert',
       mood: 'Glücklich 😊',
       friendship: parseInt(localStorage.getItem('de_npc_sophie_fr') || '30', 10),
       topics: ['Reisen & Kultur', 'Kaffee & Rezepte', 'Literatur'],
@@ -162,10 +174,10 @@
     lukas: {
       id: 'lukas',
       name: 'Lukas Wagner',
-      role: 'Der Architektur-Student (الفصل الدراسي والمدينة)',
+      role: 'Architekturstudent',
       world: 'Classroom',
       avatar: '📐',
-      personality: 'Ehrgeizig, technikbegeistert & neugierig (طموح، شغوف بالهندسة والتكنولوجيا)',
+      personality: 'Ehrgeizig, technikbegeistert und neugierig',
       mood: 'Konzentriert & Begeistert 🤩',
       friendship: parseInt(localStorage.getItem('de_npc_lukas_fr') || '20', 10),
       topics: ['Moderne Architektur', 'Tech & Gaming', 'Zukunftspläne'],
@@ -193,10 +205,10 @@
     herr_weber: {
       id: 'herr_weber',
       name: 'Herr Heinrich Weber',
-      role: 'Der Nachbar & Rentner (المنزل والحديقة)',
+      role: 'Nachbar und Rentner',
       world: 'House',
       avatar: '👴',
-      personality: 'Pünktlich, traditionell, weicher Kern (محب للانضباط والهدوء، طيب في داخله)',
+      personality: 'Pünktlich und traditionsbewusst, aber herzlich',
       mood: 'Nachdenklich 🤔',
       friendship: parseInt(localStorage.getItem('de_npc_weber_fr') || '10', 10),
       topics: ['Pünktlichkeit & Ordnung', 'Gartenpflege', 'Geschichte'],
@@ -224,10 +236,10 @@
     hanna: {
       id: 'hanna',
       name: 'Hanna Schneider',
-      role: 'Die Filialleiterin (السوبرماركت)',
+      role: 'Filialleiterin',
       world: 'Supermarket',
       avatar: '💼',
-      personality: 'Strukturiert, effizient, liebt frische Küche (منظمة، عملية، تعشق الطبخ الصحي)',
+      personality: 'Strukturiert, effizient und begeistert von frischer Küche',
       mood: 'Etwas gestresst 😤',
       friendship: parseInt(localStorage.getItem('de_npc_hanna_fr') || '15', 10),
       topics: ['Gesunde Ernährung', 'Qualitätsprodukte', 'Business & Logistik'],
@@ -255,10 +267,10 @@
     max: {
       id: 'max',
       name: 'Max Becker',
-      role: 'Der Fitnesstrainer (شوارع المدينة والرياضة)',
+      role: 'Fitnesstrainer',
       world: 'City',
       avatar: '🏃',
-      personality: 'Sportlich, enthusiastisch & motivierend (رياضي، مفعم بالحماس والطاقة الإيجابية)',
+      personality: 'Sportlich, enthusiastisch und motivierend',
       mood: 'Voller Energie ⚡',
       friendship: parseInt(localStorage.getItem('de_npc_max_fr') || '25', 10),
       topics: ['Fitness & Ausdauer', 'Ernährung', 'Motivation'],
@@ -286,21 +298,21 @@
   };
 
   function getFriendshipStatus(points) {
-    if (points >= 90) return 'Bester Freund (صديق مقرب جداً 💖)';
-    if (points >= 60) return 'Guter Freund (صديق حميم 🤝)';
-    if (points >= 35) return 'Kumpel (رفيق مرح ☕)';
-    if (points >= 15) return 'Bekannter (معارف 👤)';
-    return 'Fremder (شخص غريب ⚪)';
+    if (points >= 90) return 'Bester Freund 💖';
+    if (points >= 60) return 'Guter Freund 🤝';
+    if (points >= 35) return 'Kumpel ☕';
+    if (points >= 15) return 'Bekannter 👤';
+    return 'Fremder ⚪';
   }
 
   // 6. Job Center System
   const JOBS = [
     {
       id: 'job_waiter',
-      title: 'Kellner im Restaurant (نادل في المطعم)',
+      title: 'Kellner im Restaurant',
       world: 'Restaurant',
       icon: '🍽️',
-      desc: 'خدمة الزبائن، تدوين الطلبات بالألمانية وحساب الفاتورة.',
+      desc: 'Bediene Gäste, nimm Bestellungen auf Deutsch auf und erstelle die Rechnung.',
       wage: 80,
       energyCost: 25,
       tasks: [
@@ -331,10 +343,10 @@
     },
     {
       id: 'job_cashier',
-      title: 'Kassierer im Supermarkt (كاشير في السوبرماركت)',
+      title: 'Kassierer im Supermarkt',
       world: 'Supermarket',
       icon: '🛒',
-      desc: 'مسح الباركود، التحقق من بطاقات الولاء، ومحاسبة العملاء بالألمانية.',
+      desc: 'Scanne Waren, prüfe Kundenkarten und kassiere auf Deutsch.',
       wage: 75,
       energyCost: 20,
       tasks: [
@@ -365,10 +377,10 @@
     },
     {
       id: 'job_guide',
-      title: 'Stadtführer in der Altstadt (مرشد سياحي في المدينة)',
+      title: 'Stadtführer in der Altstadt',
       world: 'City',
       icon: '🏛️',
-      desc: 'قيادة مجموعة سياحية وشرح معالم المدينة التاريخية باللغة الألمانية.',
+      desc: 'Führe eine Reisegruppe und erkläre die Sehenswürdigkeiten auf Deutsch.',
       wage: 110,
       energyCost: 35,
       tasks: [
@@ -403,27 +415,27 @@
   const PROPERTIES = [
     {
       id: 'prop_wg',
-      title: 'Zimmer in Studenten-WG (غرفة بسكن مشترك)',
+      title: 'Zimmer in einer Studenten-WG',
       price: 250,
       icon: '🛏️',
-      desc: 'غرفة مريحة ومفروشة في شقة طلابية مشتركة قريبة من الجامعة والخدمات.',
-      perks: 'توفر مكاناً للراحة والنوم لاستعادة الطاقة يومياً.'
+      desc: 'Ein möbliertes Zimmer in einer Wohngemeinschaft in der Nähe der Universität.',
+      perks: 'Ein ruhiger Ort zum Ausruhen und Energie tanken.'
     },
     {
       id: 'prop_apartment',
-      title: 'Moderne 2-Zimmer-Wohnung (شقة أنيقة في المدينة)',
+      title: 'Moderne 2-Zimmer-Wohnung',
       price: 950,
       icon: '🏢',
-      desc: 'شقة حديثة ومستقلة مع شرفة جميلة ومطبخ ألماني مجهز بالكامل.',
-      perks: 'مكان هادئ، إمكانية دعوة الأصدقاء لتناول القهوة والدردشة.'
+      desc: 'Eine moderne Wohnung mit Balkon und voll ausgestatteter Küche.',
+      perks: 'Ein ruhiger Ort, an dem du Freunde zum Kaffee einladen kannst.'
     },
     {
       id: 'prop_house',
-      title: 'Einfamilienhaus mit Garten (منزل عائلي مع حديقة)',
+      title: 'Einfamilienhaus mit Garten',
       price: 2800,
       icon: '🏡',
-      desc: 'منزل فسيح مع حديقة خاصة خضراء، ومكان للشواء، وغرف متعددة.',
-      perks: 'لقب "Hauseigentümer" المرموق، دعوة الأصدقاء لحفلات شواء بالألمانية.'
+      desc: 'Ein geräumiges Haus mit Garten, Grillplatz und mehreren Zimmern.',
+      perks: 'Werde Hauseigentümer und veranstalte einen Grillabend mit Freunden.'
     }
   ];
 
@@ -436,15 +448,15 @@
     hud.className = 'de-life-hud';
     hud.innerHTML = `
       <div class="de-life-stats">
-        <div class="de-life-stat money" title="رصيدك المالي الحالي باليورو">
+        <div class="de-life-stat money" title="Kontostand in Euro">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.7-.7-1.6-1-2.8-1-1.5 0-2.5.8-2.5 2s.9 1.8 2.5 2.2 2.5 1 2.5 2.2-1 2.1-2.8 2.1c-1.2 0-2.2-.4-3-1.2M12 5.5v13"/></svg>
           <span id="de-life-money-val">${LifeState.money} €</span>
         </div>
-        <div class="de-life-stat energy" title="مستوى الطاقة">
+        <div class="de-life-stat energy" title="Energielevel">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></svg>
           <span id="de-life-energy-val">${LifeState.energy}%</span>
         </div>
-        <div class="de-life-stat time" title="وقت اليوم">
+        <div class="de-life-stat time" title="Tageszeit">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           <span id="de-life-time-val">${String(LifeState.timeOfDay).replace(/[☀️🌙]/gu, '').trim()}</span>
         </div>
@@ -455,15 +467,15 @@
     const settings = document.createElement('div');
     settings.className = 'lw-hud-settings';
     settings.innerHTML = `
-      <button class="lw-settings-toggle" type="button" title="Settings" aria-label="Settings" aria-expanded="false">
+      <button class="lw-settings-toggle" type="button" title="Einstellungen" aria-label="Einstellungen" aria-expanded="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.8-.7a7.7 7.7 0 0 1-1.5.9l-.3 1.9h-2.8l-.3-1.9a7.7 7.7 0 0 1-1.5-.9l-1.8.7-1.4-2.4 1.4-1.1a7.3 7.3 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.8.7a7.7 7.7 0 0 1 1.5-.9l.3-1.9h2.8l.3 1.9a7.7 7.7 0 0 1 1.5.9l1.8-.7 1.4 2.4-1.4 1.1a7.3 7.3 0 0 1 0 1.8Z" transform="translate(-1 -1)"/></svg>
       </button>
-      <section class="lw-settings-popover" aria-label="Settings" hidden>
+      <section class="lw-settings-popover" aria-label="Einstellungen" hidden>
         <div class="lw-settings-language-slot"></div>
         <div class="lw-settings-mobile-stats"></div>
-        <button class="de-life-btn" id="de-open-life-btn" type="button" title="افتح قائمة الحياة الاجتماعية والوظائف">
+        <button class="de-life-btn" id="de-open-life-btn" type="button" title="Soziales Leben und Arbeit öffnen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6M8 10h.01M16 10h.01"/></svg>
-          <span>Meine Welt</span><span lang="ar" dir="rtl">عالمي</span>
+          <span>Meine Welt</span>
         </button>
       </section>
     `;
@@ -525,15 +537,15 @@
     const npc = NPCS[npcKey];
     const supportLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
       ? window.GermanEngine.getSupportLanguage()
-      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+      : 'de';
     const btn = document.createElement('button');
     btn.id = 'de-npc-world-beacon';
     btn.className = 'de-world-npc-beacon';
     btn.dir = supportLanguage === 'ar' ? 'rtl' : 'ltr';
-    btn.setAttribute('aria-label', supportLanguage === 'en' ? 'Talk with NPC' : 'فتح محادثة مع الشخصية');
+    btn.setAttribute('aria-label', supportLanguage === 'ar' ? 'فتح محادثة مع الشخصية' : supportLanguage === 'en' ? 'Talk with NPC' : 'Mit einer Person sprechen');
     btn.innerHTML = `
       <span class="de-world-npc-avatar" aria-hidden="true"></span>
-      <span>${supportLanguage === 'en' ? 'Talk with' : 'تحدث مع'}</span>
+      <span>${supportLanguage === 'ar' ? 'تحدث مع' : supportLanguage === 'en' ? 'Talk with' : 'Sprich mit'}</span>
       <bdi lang="en" dir="ltr">${npc.name.split(' ')[0]}</bdi>
     `;
     btn.addEventListener('click', () => {
@@ -556,8 +568,8 @@
           <div style="display:flex; align-items:center; gap:12px;">
             <span style="font-size:28px;">🏙️</span>
             <div>
-              <div style="font-size:20px; font-weight:900;">Das Leben in Deutschland (الحياة اليومية)</div>
-              <div style="font-size:13px; color:#94a3b8; font-weight:600;">صداقات، وظائف، عقارات، وأنشطة حقيقية</div>
+              <div style="font-size:20px; font-weight:900;">Das Leben in Deutschland</div>
+              <div style="font-size:13px; color:#94a3b8; font-weight:600;">Freundschaften, Arbeit, Wohnen und Alltag</div>
             </div>
           </div>
           <button class="de-modal-close" style="color:white; background:rgba(255,255,255,0.15);" id="de-life-close-btn">&times;</button>
@@ -565,19 +577,19 @@
 
         <div class="de-life-tabs">
           <button class="de-life-tab ${defaultTab === 'friends' ? 'active' : ''}" data-tab="friends">
-            <span>👥</span> <span>Freunde & Kontakte (الأصدقاء)</span>
+            <span>👥</span> <span>Freunde & Kontakte</span>
           </button>
           <button class="de-life-tab ${defaultTab === 'work' ? 'active' : ''}" data-tab="work">
-            <span>💼</span> <span>Arbeit & Geld (العمل والدخل)</span>
+            <span>💼</span> <span>Arbeit & Einkommen</span>
           </button>
           <button class="de-life-tab ${defaultTab === 'housing' ? 'active' : ''}" data-tab="housing">
-            <span>🏡</span> <span>Immobilien (شراء المنازل)</span>
+            <span>🏡</span> <span>Wohnen</span>
           </button>
           <button class="de-life-tab ${defaultTab === 'routine' ? 'active' : ''}" data-tab="routine">
-            <span>🛌</span> <span>Tagesablauf (الراحة والروتين)</span>
+            <span>🛌</span> <span>Tagesablauf</span>
           </button>
           <button class="de-life-tab ${defaultTab === 'tagesaufgabe' ? 'active' : ''}" data-tab="tagesaufgabe">
-            <span>📅</span> <span>Tagesaufgabe (التحدي اليومي)</span>
+            <span>📅</span> <span>Tagesaufgaben</span>
           </button>
         </div>
 
@@ -608,8 +620,8 @@
     if (tab === 'friends') {
       container.innerHTML = `
         <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">دائرة معارفك في ألمانيا</h3>
-          <p style="margin:0; font-size:13px; color:#64748b;">لكل شخصية طبيعة، مزاج، واهتمامات مختلفة. تحدث معهم لبناء صداقات حقيقية!</p>
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Dein Freundeskreis in Deutschland</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">Jede Person hat eine eigene Persönlichkeit und Interessen. Sprich mit ihnen und schließe Freundschaften.</p>
         </div>
         <div class="de-npc-grid">
           ${Object.keys(NPCS).map(key => {
@@ -627,10 +639,10 @@
                   </div>
                   <span class="de-npc-mood-badge">${npc.mood}</span>
                 </div>
-                <div class="de-npc-personality">💡 <b>الشخصية:</b> ${npc.personality}</div>
+                <div class="de-npc-personality">💡 <b>Persönlichkeit:</b> ${npc.personality}</div>
                 <div>
                   <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:800; color:#475569;">
-                    <span>علاقة الصداقة:</span>
+                    <span>Freundschaft:</span>
                     <span>${frStatus} (${npc.friendship}/100)</span>
                   </div>
                   <div class="de-npc-friendship-bar">
@@ -638,7 +650,7 @@
                   </div>
                 </div>
                 <button class="de-npc-action-btn" data-npckey="${key}">
-                  <span>💬</span> <span>دردشة وبناء صداقة (Unterhalten)</span>
+                  <span>💬</span> <span>Gespräch beginnen</span>
                 </button>
               </div>
             `;
@@ -656,8 +668,8 @@
     } else if (tab === 'work') {
       container.innerHTML = `
         <div style="margin-bottom:18px;">
-          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">مكتب التوظيف والعمل اليومي (Arbeitsamt)</h3>
-          <p style="margin:0; font-size:13px; color:#64748b;">اعمل في وظائف حقيقية لكسب اليورو 💶 وممارسة الألمانية المهنية!</p>
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Arbeitsamt und Berufswelt</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">Arbeite, verdiene Euro 💶 und übe Deutsch im Berufsalltag.</p>
         </div>
         <div>
           ${JOBS.map(job => `
@@ -667,12 +679,12 @@
                 <h4>${job.title}</h4>
                 <p>${job.desc}</p>
                 <div style="display:flex; gap:10px; align-items:center;">
-                  <span class="de-job-wage">💶 +${job.wage} € / نوبة عمل</span>
-                  <span style="font-size:12px; color:#d97706; font-weight:700;">⚡ تستهلك ${job.energyCost}% طاقة</span>
+                  <span class="de-job-wage">💶 +${job.wage} € / Schicht</span>
+                  <span style="font-size:12px; color:#d97706; font-weight:700;">⚡ ${job.energyCost}% Energieverbrauch</span>
                 </div>
               </div>
               <button class="de-job-work-btn" data-jobid="${job.id}">
-                <span>💼</span> <span>بدء العمل الآن</span>
+                <span>💼</span> <span>Jetzt arbeiten</span>
               </button>
             </div>
           `).join('')}
@@ -689,8 +701,8 @@
     } else if (tab === 'housing') {
       container.innerHTML = `
         <div style="margin-bottom:18px;">
-          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">سوق العقارات وشراء المنازل (Immobilienmarkt)</h3>
-          <p style="margin:0; font-size:13px; color:#64748b;">اشترِ منزلك الخاص في ألمانيا، أسّس غرفك، واستمتع بالاستقرار والراحة!</p>
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Immobilienmarkt</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">Finde ein Zuhause und richte deine Räume ein.</p>
         </div>
         <div>
           ${PROPERTIES.map(prop => {
@@ -701,7 +713,7 @@
                 <div style="flex:1;">
                   <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                     <h4 style="margin:0; font-size:17px; font-weight:900; color:#0f172a;">${prop.title}</h4>
-                    ${isOwned ? '<span class="de-property-owned-badge">✓ مملوك لك</span>' : ''}
+                    ${isOwned ? '<span class="de-property-owned-badge">✓ Dein Zuhause</span>' : ''}
                   </div>
                   <p style="margin:0 0 6px; font-size:13px; color:#64748b;">${prop.desc}</p>
                   <div style="font-size:12px; color:#2563eb; font-weight:700;">✨ ${prop.perks}</div>
@@ -709,11 +721,11 @@
                 <div>
                   ${isOwned ? `
                     <button class="de-life-btn" style="padding:10px 18px; font-weight:800;" disabled>
-                      🏡 منزلك الحالي
+                      🏡 Dein Zuhause
                     </button>
                   ` : `
                     <button class="de-buy-btn" data-propid="${prop.id}">
-                      <span>💶</span> <span>شراء (${prop.price} €)</span>
+                      <span>💶</span> <span>Kaufen (${prop.price} €)</span>
                     </button>
                   `}
                 </div>
@@ -733,17 +745,17 @@
     } else if (tab === 'routine') {
       container.innerHTML = `
         <div style="margin-bottom:18px;">
-          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">الروتين اليومي والراحة (Tagesablauf)</h3>
-          <p style="margin:0; font-size:13px; color:#64748b;">النوم والراحة يستعيدان طاقتك بنسبة 100% لتتمكن من العمل والدراسة بنشاط!</p>
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Tagesablauf und Erholung</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">Mit Schlaf und Ruhe füllst du deine Energie wieder vollständig auf.</p>
         </div>
         <div style="background:#f8fafc; border-radius:22px; padding:24px; border:1.5px solid #e2e8f0; text-align:center;">
           <div style="font-size:52px; margin-bottom:12px;">🛌</div>
-          <h4 style="margin:0 0 8px; font-size:20px; font-weight:900; color:#0f172a;">Schlafen & Ausruhen (النوم والراحة في المنزل)</h4>
+          <h4 style="margin:0 0 8px; font-size:20px; font-weight:900; color:#0f172a;">Schlafen und Ausruhen</h4>
           <p style="font-size:14px; color:#64748b; max-width:400px; margin:0 auto 20px;">
-            هل تشعر بالتعب بعد يوم طويل من العمل ودراسة الألمانية؟ خذ قسطاً كافياً من الراحة الآن.
+            Bist du nach einem langen Tag müde? Gönn dir eine Pause und tanke neue Energie.
           </p>
           <button class="de-action-btn de-btn-speak" style="margin:0 auto; max-width:260px;" id="de-rest-btn">
-            <span>✨</span> <span>الخلود إلى النوم والراحة (استعادة الطاقة 100%)</span>
+            <span>✨</span> <span>Schlafen und Energie vollständig auffüllen</span>
           </button>
         </div>
       `;
@@ -761,19 +773,19 @@
       }
 
       const challenges = [
-        { icon: '📚', title: 'تعلم 5 كلمات جديدة اليوم', desc: 'Lerne heute 5 neue Vokabeln auf Deutsch' },
-        { icon: '💬', title: 'أتمم محادثة واحدة كاملة', desc: 'Führe ein vollständiges Gespräch mit einem NPC' },
-        { icon: '💼', title: 'اعمل في وظيفة اليوم', desc: 'Arbeite heute in einem Job und verdiene Geld' }
+        { icon: '📚', title: 'Lerne heute 5 neue Wörter', desc: 'Entdecke fünf deutsche Vokabeln.' },
+        { icon: '💬', title: 'Führe ein Gespräch', desc: 'Schließe ein vollständiges Gespräch mit einer Person ab.' },
+        { icon: '💼', title: 'Arbeite heute', desc: 'Erledige eine Schicht und verdiene Geld.' }
       ];
 
       const allDone = dailyData.completed.every(Boolean);
       container.innerHTML = `
         <div style="margin-bottom:18px;">
-          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Tagesaufgaben (تحديات اليوم)</h3>
-          <p style="margin:0; font-size:13px; color:#64748b;">أتمم التحديات اليومية الثلاثة لتحصل على مكافأة 200 XP إضافية!</p>
+          <h3 style="margin:0 0 4px; font-size:18px; font-weight:900; color:#0f172a;">Tagesaufgaben</h3>
+          <p style="margin:0; font-size:13px; color:#64748b;">Schließe alle drei Aufgaben ab und erhalte 200 XP extra!</p>
         </div>
         <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:16px; padding:14px 18px; margin-bottom:16px; font-size:13px; font-weight:700; color:#92400e;">
-          📅 تحدي اليوم: <b>${today}</b>
+          📅 Heutige Herausforderung: <b>${today}</b>
         </div>
         ${challenges.map((ch, i) => `
           <div class="de-daily-challenge-card">
@@ -785,14 +797,14 @@
               <div style="font-weight:900; font-size:15px; color:#0f172a;">${ch.title}</div>
               <div style="font-size:12px; color:#64748b; font-weight:600;">${ch.desc}</div>
             </div>
-            ${dailyData.completed[i] ? '<span style="font-size:11px;font-weight:800;color:#059669;background:#dcfce7;padding:3px 8px;border-radius:10px;">✓ أُنجز</span>' : ''}
+            ${dailyData.completed[i] ? '<span style="font-size:11px;font-weight:800;color:#059669;background:#dcfce7;padding:3px 8px;border-radius:10px;">✓ Erledigt</span>' : ''}
           </div>
         `).join('')}
         ${allDone ? `
           <div style="text-align:center; padding:20px; background:linear-gradient(135deg,#f0fdf4,#dcfce7); border-radius:18px; margin-top:12px;">
             <div style="font-size:40px; margin-bottom:8px;">🏆</div>
-            <div style="font-weight:900; font-size:16px; color:#059669;">مبروك! أنجزت جميع تحديات اليوم!</div>
-            <div style="font-size:13px; color:#15803d; font-weight:700;">+200 XP مكافأة اليوم</div>
+            <div style="font-weight:900; font-size:16px; color:#059669;">Glückwunsch! Alle Tagesaufgaben erledigt!</div>
+            <div style="font-size:13px; color:#15803d; font-weight:700;">+200 XP Tagesbonus</div>
           </div>
         ` : ''}
       `;
@@ -803,14 +815,14 @@
           dailyData.completed[idx] = true;
           localStorage.setItem('de_daily_challenge', JSON.stringify(dailyData));
           playSFX('Correct');
-          showToast(`✅ أحسنت! أنجزت التحدي: ${challenges[idx].title}`);
+          showToast(`✅ Gut gemacht! Aufgabe erledigt: ${challenges[idx].title}`);
           if (dailyData.completed.every(Boolean) && !dailyData.bonusGiven) {
             dailyData.bonusGiven = true;
             localStorage.setItem('de_daily_challenge', JSON.stringify(dailyData));
             if (window.GermanEngine && window.GermanEngine.State) {
-              window.GermanEngine.State.addXP(200, 'إنجاز جميع تحديات اليوم!');
+              window.GermanEngine.State.addXP(200, 'Alle Tagesaufgaben abgeschlossen');
             }
-            showToast('🏆 +200 XP مكافأة إنجاز تحديات اليوم!');
+            showToast('🏆 +200 XP Tagesbonus!');
           }
           renderTabContent('tagesaufgabe');
         });
@@ -831,7 +843,7 @@
 
     const language = window.GermanEngine && window.GermanEngine.getSupportLanguage
       ? window.GermanEngine.getSupportLanguage()
-      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
+      : 'de';
     const copy = language === 'en'
       ? {
         close: 'Close conversation',
@@ -859,7 +871,8 @@
         notConfigured: 'AI chat has not been configured on the server yet.',
         turnLimit: 'You reached the message limit for this conversation.'
       }
-      : {
+      : language === 'ar'
+      ? {
         close: 'إغلاق المحادثة',
         you: 'أنت',
         listen: 'استمع',
@@ -884,9 +897,35 @@
         replyTimeout: 'تأخر الرد. اختر أحد الاقتراحات أو أعد الإرسال.',
         notConfigured: 'لم تُضبط خدمة الذكاء الاصطناعي على الخادم بعد.',
         turnLimit: 'وصلت إلى الحد الأقصى لعدد الرسائل في هذه المحادثة.'
+      }
+      : {
+        close: 'Gespräch schließen',
+        you: 'Du',
+        listen: 'Anhören',
+        online: 'Für ein Gespräch verfügbar',
+        practiceLabel: 'Deutsch üben',
+        friendship: 'Freundschaft',
+        hideTranslations: 'Übersetzung ausblenden',
+        showTranslations: 'Übersetzung anzeigen',
+        placeholder: 'Schreibe auf Deutsch …',
+        send: 'Senden',
+        micComingSoon: 'Spracheingabe folgt bald',
+        enterKey: 'Enter',
+        sendHint: 'zum Senden',
+        shiftEnterKey: 'Shift+Enter',
+        newlineHint: 'für einen Zeilenumbruch',
+        suggestions: 'Du könntest so anfangen',
+        privacyBefore: 'Deine Nachrichten werden an',
+        privacyAfter: 'gesendet, um Antworten zu erstellen. Teile keine persönlichen oder vertraulichen Informationen.',
+        typing: 'schreibt …',
+        connectionError: 'Der KI-Dienst ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.',
+        serviceBusy: 'Der KI-Dienst ist gerade ausgelastet. Versuch es gleich noch einmal.',
+        replyTimeout: 'Die Antwort dauert zu lange. Wähle einen Vorschlag oder sende die Nachricht erneut.',
+        notConfigured: 'Der KI-Chat wurde auf dem Server noch nicht eingerichtet.',
+        turnLimit: 'Du hast das Nachrichtenlimit für dieses Gespräch erreicht.'
       };
 
-    const showTranslations = localStorage.getItem('lw_npc_translations') !== 'false';
+    const showTranslations = language !== 'de' && localStorage.getItem('lw_npc_translations') === 'true';
     const friendshipLabel = getFriendshipStatus(npc.friendship).split(' (')[0];
     const moodTone = /gestresst|nachdenklich/i.test(npc.mood) ? 'is-warm' : 'is-positive';
     let suggestedResponses = [...npc.dialogue.responses];
@@ -918,7 +957,7 @@
             </div>
           </div>
           <div class="de-ai-header-actions">
-            <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button"
+            <button class="de-ai-translation-toggle" id="de-ai-translation-toggle" type="button" ${language === 'de' ? 'disabled' : ''}
               aria-pressed="${showTranslations}" aria-label="${showTranslations ? copy.hideTranslations : copy.showTranslations}"
               title="${showTranslations ? copy.hideTranslations : copy.showTranslations}">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

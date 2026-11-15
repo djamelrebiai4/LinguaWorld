@@ -70,6 +70,45 @@
 
   const SUPPORT_LANGUAGE_KEY = 'lw_support_language';
   const COPY = {
+    de: {
+      supportLanguage: 'Erklärungssprache',
+      homeHeading: 'Deutsch lernen',
+      homeNote: 'Deutsch ist die Lernsprache. Arabische oder englische Hilfe kannst du bei Bedarf auswählen.',
+      beginner: 'Anfänger',
+      explorer: 'Entdecker',
+      advanced: 'Fortgeschritten',
+      germanMaster: 'Deutsch-Profi',
+      example: 'Beispiel',
+      translationExample: 'Übersetzung',
+      close: 'Schließen',
+      reviewVocabulary: 'Wörter wiederholen',
+      chooseWordToReview: 'Wähle ein Wort, um Artikel und Aussprache zu wiederholen.',
+      plural: 'Plural / Ausdruck',
+      tip: (article) => `Lerne jedes Nomen mit seinem Artikel (${article}) und seiner Farbe.`,
+      listen: 'Aussprache anhören',
+      practice: 'Sprechen üben',
+      listening: 'Ich höre zu … Sprich jetzt!',
+      excellent: 'Ausgezeichnete Aussprache!',
+      heard: 'Erkannt',
+      tryAgain: 'Versuche es noch einmal.',
+      speechUnavailable: 'Spracherkennung ist in diesem Browser nicht verfügbar.',
+      speechError: 'Ich konnte dich nicht hören. Versuch es noch einmal.',
+      questCompleted: (title) => `Aufgabe „${title}“ abgeschlossen! 🎉`,
+      found: (word) => `${word} gefunden!`,
+      pronounced: (word) => `${word} richtig ausgesprochen!`,
+      correct: (word) => `Richtige Antwort: ${word}`,
+      challenge: 'Artikel-Quiz',
+      chooseArticle: 'Wähle den richtigen Artikel: der, die oder das.',
+      loading: 'Wird geladen …',
+      time: 'Zeit',
+      streak: 'Serie',
+      score: 'Punkte',
+      masculine: 'maskulin',
+      feminine: 'feminin',
+      neuter: 'neutrum',
+      timeUp: (score) => `Zeit abgelaufen! Dein Punktestand: ${score} XP`,
+      wrong: (word) => `Noch nicht. Der richtige Artikel ist ${word}.`
+    },
     en: {
       supportLanguage: 'Explain in',
       homeHeading: 'Learn German',
@@ -151,21 +190,25 @@
   };
 
   function getSupportLanguage() {
-    return localStorage.getItem(SUPPORT_LANGUAGE_KEY) === 'en' ? 'en' : 'ar';
+    const language = localStorage.getItem(SUPPORT_LANGUAGE_KEY);
+    return language === 'ar' || language === 'en' ? language : 'de';
   }
 
   function copy(key, ...values) {
-    const value = COPY[getSupportLanguage()][key];
+    const value = (COPY[getSupportLanguage()] || COPY.de)[key];
     return typeof value === 'function' ? value(...values) : value;
   }
 
   function getItemTranslation(item) {
-    return getSupportLanguage() === 'en' ? item.en : item.ar;
+    const language = getSupportLanguage();
+    return language === 'en' ? item.en : language === 'ar' ? item.ar : '';
   }
 
   function getTaskTranslation(task) {
-    if (getSupportLanguage() === 'ar') return task.ar;
-    return task.en || GERMAN_VOCAB[task.key]?.en || task.key;
+    const language = getSupportLanguage();
+    if (language === 'ar') return task.ar;
+    if (language === 'en') return task.en || GERMAN_VOCAB[task.key]?.en || task.key;
+    return '';
   }
 
   // 3. World Quests
@@ -337,12 +380,65 @@
   }
 
   // 6. Sound Effects Helper
+  let deAudioContext = null;
+
+  function ensureAudioContext() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!deAudioContext) {
+      deAudioContext = new AudioCtx();
+    }
+    if (deAudioContext.state === 'suspended') {
+      deAudioContext.resume().catch(() => {});
+    }
+    return deAudioContext;
+  }
+
+  function playTone({ frequency = 440, duration = 0.12, type = 'sine', volume = 0.05, sweep = 0 }) {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+    if (sweep) {
+      oscillator.frequency.linearRampToValueAtTime(frequency + sweep, ctx.currentTime + duration);
+    }
+
+    gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + duration);
+  }
+
   function playSFX(name) {
-    try {
-      const audio = new Audio(`/Sounds/${name}.mp3`);
-      audio.volume = 0.45;
-      audio.play().catch(() => {});
-    } catch(e) {}
+    const toneMap = {
+      Correct: [
+        { frequency: 660, duration: 0.08, type: 'triangle', volume: 0.045, sweep: 140 },
+        { frequency: 880, duration: 0.15, type: 'triangle', volume: 0.05, sweep: 180 }
+      ],
+      Wrong: [
+        { frequency: 220, duration: 0.12, type: 'sawtooth', volume: 0.04, sweep: -120 },
+        { frequency: 150, duration: 0.18, type: 'square', volume: 0.03, sweep: -60 }
+      ],
+      LessonComplete: [
+        { frequency: 440, duration: 0.1, type: 'triangle', volume: 0.05, sweep: 120 },
+        { frequency: 587, duration: 0.12, type: 'triangle', volume: 0.05, sweep: 120 },
+        { frequency: 784, duration: 0.18, type: 'triangle', volume: 0.05, sweep: 180 }
+      ]
+    };
+
+    const tones = toneMap[name] || [
+      { frequency: 523.25, duration: 0.08, type: 'sine', volume: 0.035, sweep: 80 }
+    ];
+
+    tones.forEach((tone, index) => {
+      setTimeout(() => playTone(tone), index * 60);
+    });
   }
 
   // 7. Toast Notification
@@ -351,13 +447,19 @@
     if (oldToast) oldToast.remove();
 
     const toast = document.createElement('div');
-    toast.className = 'de-toast';
+    const isSuccess = /\+\d+ XP|correct|excellent|completed|success|great|congrats|geschafft|richtig/i.test(message);
+    const isError = /wrong|not quite|try again|falsch|fehler|incorrect/i.test(message);
+    toast.className = `de-toast ${isSuccess ? 'de-toast-success' : isError ? 'de-toast-error' : ''}`.trim();
     toast.dir = getSupportLanguage() === 'ar' ? 'rtl' : 'ltr';
     toast.lang = getSupportLanguage();
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     icon.setAttribute('viewBox', '0 0 24 24');
     icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = '<path d="M12 3v18M5 7h14M5 17h14" />';
+    icon.innerHTML = isSuccess
+      ? '<path d="M5 12l5 5L20 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'
+      : isError
+        ? '<path d="M12 8v5m0 5h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />'
+        : '<path d="M12 3v18M5 7h14M5 17h14" />';
     const content = document.createElement('span');
     content.textContent = message;
     toast.append(icon, content);
@@ -386,9 +488,9 @@
   function renderHUD() {
     if (document.getElementById('de-top-hud')) return;
 
-    const activityGroupLabel = getSupportLanguage() === 'en'
-      ? 'German learning activities'
-      : 'أنشطة تعلم الألمانية';
+    const activityGroupLabel = getSupportLanguage() === 'de'
+      ? 'Deutsch-Lernaktivitäten'
+      : getSupportLanguage() === 'en' ? 'German learning activities' : 'أنشطة تعلم الألمانية';
     const hud = document.createElement('div');
     hud.id = 'de-top-hud';
     hud.className = 'de-hud-bar';
@@ -407,6 +509,7 @@
         <label class="de-language-control">
           <span id="de-support-language-label">${copy('supportLanguage')}</span>
           <select id="de-support-language" aria-label="${copy('supportLanguage')}">
+            <option value="de">Deutsch (keine Übersetzung)</option>
             <option value="ar">العربية</option>
             <option value="en">English</option>
           </select>
@@ -532,7 +635,7 @@
       <button class="de-quest-header" type="button" aria-expanded="${expanded}">
         <span class="de-quest-title"><span>${quest.title}</span></span>
         <span class="de-quest-summary">
-          <span class="de-quest-count">${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'en' ? 'words' : 'كلمات'}</span>
+          <span class="de-quest-count">${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'ar' ? 'كلمات' : getSupportLanguage() === 'en' ? 'words' : 'Wörter'}</span>
           <span class="de-quest-reward">+${quest.rewardXP} XP</span>
         </span>
       </button>
@@ -568,7 +671,8 @@
   }
 
   function getQuestTranslation(quest) {
-    return getSupportLanguage() === 'en' ? quest.title_en : quest.title_ar;
+    const language = getSupportLanguage();
+    return language === 'ar' ? quest.title_ar : language === 'en' ? quest.title_en : quest.title;
   }
 
   function showWorldObjectWord(key) {
@@ -671,7 +775,7 @@
       </div>
     `).join('');
     const count = widget.querySelector('.de-quest-count');
-    if (count) count.textContent = `${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'en' ? 'words' : 'كلمات'}`;
+    if (count) count.textContent = `${completedCount}/${quest.tasks.length} ${getSupportLanguage() === 'ar' ? 'كلمات' : getSupportLanguage() === 'en' ? 'words' : 'Wörter'}`;
     const previousCount = Number(widget.dataset.completedCount || 0);
     if (completedCount !== previousCount) {
       widget.classList.remove('progress-pulse');
@@ -727,7 +831,7 @@
   }
 
   function setSupportLanguage(language) {
-    const selectedLanguage = language === 'en' ? 'en' : 'ar';
+    const selectedLanguage = language === 'ar' || language === 'en' ? language : 'de';
     localStorage.setItem(SUPPORT_LANGUAGE_KEY, selectedLanguage);
 
     const selector = document.getElementById('de-support-language');
@@ -807,7 +911,7 @@
     const genderLabel = item.gender === 'maskulin' ? `🔵 DER (${copy('masculine')})`
                       : item.gender === 'feminin' ? `🔴 DIE (${copy('feminine')})`
                       : item.gender === 'neutrum' ? `🟢 DAS (${copy('neuter')})` : `🟡 ${copy('plural')}`;
-    const exampleTranslation = language === 'ar' ? item.example_ar : item.example_en;
+    const exampleTranslation = language === 'ar' ? item.example_ar : language === 'en' ? item.example_en : '';
 
     const modal = document.createElement('div');
     modal.className = 'de-learning-modal';
@@ -941,12 +1045,28 @@
     let score = 0;
     let streak = 0;
     let timeLeft = 60;
+    let difficulty = 1;
+
+    function updateDifficultyUI() {
+      difficulty = Math.min(5, Math.floor(streak / 2) + 1);
+      const levelEl = document.getElementById('de-game-difficulty');
+      const rewardEl = document.getElementById('de-game-reward');
+      if (levelEl) levelEl.textContent = `Lvl ${difficulty}`;
+      if (rewardEl) rewardEl.textContent = `+${Math.round(12 * (1 + (difficulty - 1) * 0.45))} XP`;
+    }
 
     function getNextQuestion() {
-      const randKey = candidateKeys[Math.floor(Math.random() * candidateKeys.length)];
+      const sorted = candidateKeys
+        .slice()
+        .sort(() => Math.random() - 0.5)
+        .sort((a, b) => {
+          const aScore = GERMAN_VOCAB[a].de.length + (GERMAN_VOCAB[a].example_de?.length || 0);
+          const bScore = GERMAN_VOCAB[b].de.length + (GERMAN_VOCAB[b].example_de?.length || 0);
+          return Math.random() > 0.5 ? aScore - bScore : bScore - aScore;
+        });
+      const randKey = sorted[Math.min(sorted.length - 1, Math.floor(Math.random() * Math.max(4, difficulty + 1)))];
       currentItem = GERMAN_VOCAB[randKey];
       State.currentGameItem = currentItem;
-      // Strip article from German display so user has to guess it
       const nounOnly = currentItem.de.replace(/^(der|die|das)\s+/i, '');
 
       const nounEl = document.getElementById('de-game-noun-display');
@@ -955,6 +1075,7 @@
         nounEl.textContent = nounOnly;
         arEl.textContent = getItemTranslation(currentItem);
       }
+      updateDifficultyUI();
       speakGerman(currentItem.de);
     }
 
@@ -972,6 +1093,7 @@
           <div><span id="de-game-time-label">⏳ ${copy('time')}:</span> <span id="de-game-timer">60</span>s</div>
           <div><span id="de-game-streak-label">🔥 ${copy('streak')}:</span> <span id="de-game-streak">0</span>x</div>
           <div><span id="de-game-score-label">⭐ ${copy('score')}:</span> <span id="de-game-score">0</span></div>
+          <div class="de-game-badge"><span id="de-game-difficulty">Lvl 1</span> <span id="de-game-reward">+12 XP</span></div>
         </div>
 
         <div class="de-game-word-card">
@@ -1003,12 +1125,16 @@
       if (isCorrect) {
         playSFX('Correct');
         streak++;
-        const addedXP = 10 * Math.min(streak, 4);
+        const difficultyBoost = 1 + (difficulty - 1) * 0.45;
+        const comboBoost = 1 + Math.min(1.5, streak * 0.12);
+        const addedXP = Math.round(12 * difficultyBoost * comboBoost);
         score += addedXP;
         State.addXP(addedXP, copy('correct', currentItem.de));
+        timeLeft = Math.min(60, timeLeft + 1);
       } else {
         playSFX('Wrong');
         streak = 0;
+        timeLeft = Math.max(20, timeLeft - 5);
         showToast(copy('wrong', currentItem.de));
       }
 
@@ -1453,13 +1579,13 @@
     trigger.type = 'button';
     const supportLanguage = window.GermanEngine && window.GermanEngine.getSupportLanguage
       ? window.GermanEngine.getSupportLanguage()
-      : localStorage.getItem('lw_support_language') === 'en' ? 'en' : 'ar';
-    trigger.dir = supportLanguage === 'en' ? 'ltr' : 'rtl';
+      : 'de';
+    trigger.dir = supportLanguage === 'ar' ? 'rtl' : 'ltr';
     trigger.setAttribute(
       'aria-label',
-      supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية'
+      supportLanguage === 'ar' ? 'تحدث مع شخصية' : supportLanguage === 'en' ? 'Talk with an NPC' : 'Mit einer Person sprechen'
     );
-    trigger.title = supportLanguage === 'en' ? 'Talk with an NPC' : 'تحدث مع شخصية';
+    trigger.title = supportLanguage === 'ar' ? 'تحدث مع شخصية' : supportLanguage === 'en' ? 'Talk with an NPC' : 'Mit einer Person sprechen';
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     icon.setAttribute('viewBox', '0 0 24 24');
     icon.setAttribute('aria-hidden', 'true');
