@@ -439,12 +439,14 @@ function createCityMap(language) {
       const distance = Math.hypot(place.x - x, place.z - z);
       return !best || distance < best.distance ? { place, distance } : best;
     }, null);
-    currentLocation.textContent = `Du bist in der Nähe von ${nearest.place.name.de} · ${Math.round(nearest.distance)} m entfernt · X ${Math.round(x)}, Z ${Math.round(z)}`;
+    const currentText = `Du bist in der Nähe von ${nearest.place.name.de} · ${Math.round(nearest.distance)} m entfernt · X ${Math.round(x)}, Z ${Math.round(z)}`;
+    if (currentLocation.textContent !== currentText) currentLocation.textContent = currentText;
     if (!selectedPlace) return;
     const dx = selectedPlace.x - x;
     const dz = selectedPlace.z - z;
     const distance = Math.hypot(dx, dz);
-    selectedLocation.textContent = `${selectedPlace.name.de} · ${Math.round(distance)} m ${directionFor(dx, dz)}`;
+    const selectedText = `${selectedPlace.name.de} · ${Math.round(distance)} m ${directionFor(dx, dz)}`;
+    if (selectedLocation.textContent !== selectedText) selectedLocation.textContent = selectedText;
   };
   const selectPlace = (place) => {
     selectedPlace = place;

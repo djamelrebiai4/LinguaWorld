@@ -326,7 +326,13 @@
     };
 
     retryLocalization();
-    new MutationObserver(translatePage).observe(document.body, {
+    new MutationObserver((records) => {
+      const hasPageChanges = records.some(({ target }) => {
+        const element = target instanceof Element ? target : target.parentElement;
+        return !element?.closest('.lw-city-map');
+      });
+      if (hasPageChanges) translatePage();
+    }).observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true
